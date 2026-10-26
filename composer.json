@@ -1,0 +1,66 @@
+{
+    "name": "superconductor/mcp",
+    "description": "The Superconductor MCP framework module for VenusianPHP.",
+    "type": "library",
+    "version": "0.10.0",
+    "keywords": [
+        "framework",
+        "superconductor",
+        "mcp",
+        "model-context-protocol",
+        "venusian"
+    ],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Angel Gonzalez",
+            "email": "angel@projectsaturnstudios.com"
+        }
+    ],
+    "require": {
+        "php": "^8.4|^8.5|^8.6",
+        "venusian-voyager/console": "^0.10.0",
+        "venusian-voyager/contracts": "^0.10.0",
+        "venusian-voyager/io-pools": "^0.10.0",
+        "venusian-voyager/nuts-and-bolts": "^0.10.0",
+        "venusian-voyager/workflows": "^0.10.0"
+    },
+    "require-dev": {
+        "pestphp/pest": "^4.0"
+    },
+    "replace": {
+        "superconductor/contracts": "self.version",
+        "superconductor/nuts-and-bolts": "self.version",
+        "superconductor/mechanism": "self.version",
+        "superconductor/server": "self.version",
+        "superconductor/client": "self.version"
+    },
+    "autoload": {
+        "psr-4": {
+            "Fabricate\\": "src/Fabricate/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Fabricate\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/pest"
+    },
+    "extra": {
+        "venusian": {
+            "providers": [
+                "Fabricate\\Core\\Providers\\SuperconductorMCPServiceProvider"
+            ]
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

@@ -1,0 +1,30 @@
+{
+    "name": "superconductor/mechanism",
+    "description": "The procedures and router that answer MCP requests, shared by server and client.",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Angel Gonzalez",
+            "email": "angel@projectsaturnstudios.com"
+        }
+    ],
+    "require": {
+        "php": "^8.4|^8.5|^8.6",
+        "superconductor/nuts-and-bolts": "^0.10.0",
+        "venusian-voyager/workflows": "^0.10.0"
+    },
+    "minimum-stability": "dev",
+    "autoload": {
+        "psr-4": {
+            "Fabricate\\Mechanism\\": ""
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-main": "0.10.x-dev"
+        }
+    }
+}

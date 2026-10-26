@@ -1,0 +1,33 @@
+{
+    "name": "superconductor/client",
+    "description": "MCPClient and the client manager: one connection per server, living inside the application event loop.",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Angel Gonzalez",
+            "email": "angel@projectsaturnstudios.com"
+        }
+    ],
+    "require": {
+        "php": "^8.4|^8.5|^8.6",
+        "superconductor/mechanism": "^0.10.0",
+        "superconductor/nuts-and-bolts": "^0.10.0",
+        "venusian-voyager/io-pools": "^0.10.0",
+        "venusian-voyager/nuts-and-bolts": "^0.10.0",
+        "venusian-voyager/workflows": "^0.10.0"
+    },
+    "minimum-stability": "dev",
+    "autoload": {
+        "psr-4": {
+            "Fabricate\\Client\\": ""
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-main": "0.10.x-dev"
+        }
+    }
+}

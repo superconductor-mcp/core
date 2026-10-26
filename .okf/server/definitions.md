@@ -1,0 +1,40 @@
+---
+type: Server
+title: Definitions
+description: Tools, resources, templates, prompts, completers: the DTOs, the attributes, what handle() gets and returns.
+resource: src/Fabricate/NutsAndBolts
+tags: [mcp, server, tools, resources, prompts]
+status: draft
+generated: { by: claude-fable/5.1, at: 2026-10-26T04:30:00Z }
+sources:
+  - id: tool
+    resource: src/Fabricate/NutsAndBolts/ToolDefinition.php
+    title: ToolDefinition
+  - id: calltool
+    resource: src/Fabricate/Mechanism/Rpc/Procedures/Tools/CallToolProcedure.php
+    title: CallToolProcedure
+---
+
+# A definition names an action
+
+Each DTO's `action` is a `Closure` or a class name. A class is built through the container (so it may take the loop, its server or a `ProgressReporter` in its constructor) only when it carries the matching attribute and has a public `handle()`; otherwise the procedure answers `MethodNotFound` (tools) or `InternalError` (resources, prompts).
+
+| Definition | Attribute | `handle()` arguments | returns |
+|---|---|---|---|
+| `ToolDefinition(name, description, properties, required, action)` | `#[ToolCall]` | the call's arguments by name; `required` checked, unknown names refused, PHP's own required parameters checked, all as `InvalidParams` | one `SchemaPrimitive` or a list; anything else or a throw → `isError` result |
+| `ResourceDefinition(uri, name, description, mime_type, action)` | `#[ResourceRead]` | none | `ResourceContents` |
+| `ResourceTemplateDefinition(uri_template, name, description, mime_type, action, completers)` | `#[ResourceRead]` | the template's `{variables}`, matched per path segment and url-decoded | `ResourceContents` |
+| `PromptDefinition(name, description, arguments, action)`, `PromptArgument(name, description, required, completer)` | `#[PromptGet]` | the prompt's arguments by name, always strings | a list of `PromptMessage` |
+| a `completer` | `#[Completes]` | `handle(string $value)` | `CompletionResult` |
+
+# Schema primitives
+
+`StringProperty(description)` describes a tool parameter. Results are `TextProperty(text)`, `ImageProperty(data, mime_type)` and `EmbeddedResourceProperty(uri, mime_type, text|blob)`, which wraps `ResourceContents`. Every one is `Arrayable` and renders its own wire shape.
+
+# Lists are computed per call
+
+`tools()`, `resources()`, `resourceTemplates()` and `prompts()` return the `$tools` etc. arrays by default; override them to decide per call (the dev app's concept server offers `press_start` until pressed, then `echo`). Each list request pages its result through `Paginator` with an opaque base64 offset cursor and `mcp.pagination.page_size`; a cursor the paginator did not make is `InvalidParams`.
+
+# Progress and cancellation
+
+The transport registers a `ProgressReporter` for the request in the container before the action is built. `report($progress, $total)` sends `notifications/progress` for a request that carried a `progressToken`, only when the value increased, at most once per `mcp.progress.min_interval` except the report that reaches the total; `finish()` after the response stops it. A `notifications/cancelled` for a request still in flight suppresses its response.

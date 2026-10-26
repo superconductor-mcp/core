@@ -1,0 +1,28 @@
+{
+    "name": "superconductor/contracts",
+    "description": "The interfaces Superconductor MCP components are written against.",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Angel Gonzalez",
+            "email": "angel@projectsaturnstudios.com"
+        }
+    ],
+    "require": {
+        "php": "^8.4|^8.5|^8.6"
+    },
+    "minimum-stability": "dev",
+    "autoload": {
+        "psr-4": {
+            "Fabricate\\Contracts\\": ""
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-main": "0.10.x-dev"
+        }
+    }
+}

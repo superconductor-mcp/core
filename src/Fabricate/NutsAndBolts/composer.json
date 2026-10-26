@@ -1,0 +1,32 @@
+{
+    "name": "superconductor/nuts-and-bolts",
+    "description": "MCP messages, definitions, schema primitives, the line decoder and the request id ledger.",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Angel Gonzalez",
+            "email": "angel@projectsaturnstudios.com"
+        }
+    ],
+    "require": {
+        "php": "^8.4|^8.5|^8.6",
+        "superconductor/contracts": "^0.10.0",
+        "venusian-voyager/contracts": "^0.10.0",
+        "venusian-voyager/nuts-and-bolts": "^0.10.0",
+        "venusian-voyager/workflows": "^0.10.0"
+    },
+    "minimum-stability": "dev",
+    "autoload": {
+        "psr-4": {
+            "Fabricate\\NutsAndBolts\\": ""
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-main": "0.10.x-dev"
+        }
+    }
+}
