@@ -12,7 +12,7 @@ it('opens with initialize, finishes the handshake, and caches every page of each
         ->and($connection->opened)->toBeTrue()
         ->and($connection->sent[0]['method'])->toBe('initialize')
         ->and($connection->sent[0]['id'])->toBe(0)
-        ->and($connection->sent[0]['params']['protocolVersion'])->toBe('2024-11-05');
+        ->and($connection->sent[0]['params']['protocolVersion'])->toBe('2025-03-26');
 
     $connection->handshake(['tools' => ['listChanged' => true], 'prompts' => []]);
     expect($client->status())->toBe(ClientStatus::Connected)

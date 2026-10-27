@@ -80,3 +80,24 @@ it('refuses an unknown method with its id and a wrong jsonrpc with a request err
 
     expect(LineDecoder::decodeString(json_encode(['jsonrpc' => '1.0', 'id' => 9, 'method' => 'ping'])))->toBeInstanceOf(InvalidRequest::class);
 });
+
+it('decodes a JSON-RPC batch into one message per element', function () {
+    $messages = LineDecoder::decode(json_encode([
+        ['jsonrpc' => '2.0', 'id' => 1, 'method' => 'ping'],
+        ['jsonrpc' => '2.0', 'method' => 'notifications/initialized'],
+        ['jsonrpc' => '2.0', 'id' => 2, 'method' => 'nope'],
+        'not an object',
+    ]));
+
+    expect($messages)->toHaveCount(4)
+        ->and($messages[0])->toBeInstanceOf(PingRequest::class)
+        ->and($messages[1])->toBeInstanceOf(InitializedNotification::class)
+        ->and($messages[2])->toBeInstanceOf(MethodNotFound::class)
+        ->and($messages[2]->id)->toBe(2)
+        ->and($messages[3])->toBeInstanceOf(InvalidRequest::class);
+
+    // a single object is a batch of one; an empty array is invalid per JSON-RPC
+    expect(LineDecoder::decode(line(['id' => 'a', 'method' => 'ping'])))->toHaveCount(1)->sequence(fn ($m) => $m->toBeInstanceOf(PingRequest::class));
+    expect(LineDecoder::decode('[]'))->toHaveCount(1)->sequence(fn ($m) => $m->toBeInstanceOf(InvalidRequest::class));
+    expect(LineDecoder::decode('{'))->toHaveCount(1)->sequence(fn ($m) => $m->toBeInstanceOf(ParseError::class));
+});

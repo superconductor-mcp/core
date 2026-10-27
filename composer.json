@@ -26,7 +26,8 @@
         "venusian-voyager/workflows": "^0.10.0"
     },
     "require-dev": {
-        "pestphp/pest": "^4.0"
+        "pestphp/pest": "^4.0",
+        "venusian-voyager/config": "^0.10.0"
     },
     "replace": {
         "superconductor/contracts": "self.version",

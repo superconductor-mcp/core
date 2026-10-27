@@ -53,6 +53,9 @@ class MCPClient extends MCPMechanism
 
     protected Promise $ready;
 
+    // settled by this client; the promise's own flag only turns once the engine has flushed its callbacks, a frame later
+    private bool $ready_settled = false;
+
     public function __construct(
         protected readonly string $name,
         protected readonly Loop $event_loop,
@@ -349,7 +352,8 @@ class MCPClient extends MCPMechanism
 
         $this->settleDown($why);
 
-        if (! $this->ready->settled()) {
+        if (! $this->ready_settled) {
+            $this->ready_settled = true;
             $this->ready->reject(new RequestFailed("client [{$this->name}] {$why}"));
         }
     }
@@ -359,7 +363,8 @@ class MCPClient extends MCPMechanism
         $this->bag->connect_deadline?->cancel();
         $this->bag->connect_deadline = null;
 
-        if (! $this->ready->settled()) {
+        if (! $this->ready_settled) {
+            $this->ready_settled = true;
             $this->ready->resolve($this);
         }
     }

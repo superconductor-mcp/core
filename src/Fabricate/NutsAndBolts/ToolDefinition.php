@@ -14,7 +14,8 @@ class ToolDefinition implements DefinitionContract
         public ?string $description = null,
         public array $properties = [],
         public array $required = [],
-        public Closure|string|null $action = null
+        public Closure|string|null $action = null,
+        public ?ToolAnnotations $annotations = null,
     ) {}
 
     public function toArray(): array
@@ -37,6 +38,8 @@ class ToolDefinition implements DefinitionContract
             'name' => $this->name,
             'description' => $this->description,
             'inputSchema' => $schema,
+            // 2025-03-26: a display name and behaviour hints; a 2024-11-05 client ignores keys it does not know
+            'annotations' => $this->annotations?->toArray(),
         ], fn (mixed $value): bool => ! is_null($value));
     }
 }

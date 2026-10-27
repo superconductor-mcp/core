@@ -37,7 +37,7 @@ it('answers initialize with the version the client proposed when it is supported
 
 it('offers its latest version to a client proposing one it does not speak', function () {
     [$router, $bag] = bench();
-    expect($router->dispatch(new InitializeRequest(0, '2030-01-01', [], ['name' => 'c', 'version' => '1']), $bag)->protocol_version)->toBe('2024-11-05');
+    expect($router->dispatch(new InitializeRequest(0, '2030-01-01', [], ['name' => 'c', 'version' => '1']), $bag)->protocol_version)->toBe('2025-03-26');
 });
 
 it('answers ping and refuses an unrouted method', function () {

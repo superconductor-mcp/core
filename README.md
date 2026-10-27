@@ -6,7 +6,7 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/superconductor-mcp/mcp/tests.yml?style=flat-square&label=CI)](https://github.com/superconductor-mcp/mcp/actions/workflows/tests.yml)
 [![Packagist](https://img.shields.io/packagist/v/superconductor/mcp?style=flat-square)](https://packagist.org/packages/superconductor/mcp)
 [![PHP](https://img.shields.io/packagist/dependency-v/superconductor/mcp/php?style=flat-square&label=PHP)](https://packagist.org/packages/superconductor/mcp)
-[![MCP](https://img.shields.io/badge/MCP-2024--11--05-5b4ee6?style=flat-square)](https://modelcontextprotocol.io/specification/2024-11-05)
+[![MCP](https://img.shields.io/badge/MCP-2025--03--26-5b4ee6?style=flat-square)](https://modelcontextprotocol.io/specification/2025-03-26)
 [![License](https://img.shields.io/github/license/superconductor-mcp/mcp?style=flat-square)](LICENSE)
 [![OKF](https://img.shields.io/badge/OKF-0.2-6f42c1?style=flat-square&label=knowledge%20bundle)](.okf/index.md)
 
@@ -92,7 +92,7 @@ $clients->closeAll();                           // each server shut down in the 
 | PHP | 8.4 or newer. |
 | VenusianPHP | A 0.10 application: `venusian-voyager/console`, `contracts`, `io-pools`, `nuts-and-bolts` and `workflows`. |
 | A transport | One `semiconductor/*` package. Today that is [semiconductor/stdio](https://github.com/superconductor-mcp/stdio). |
-| Protocol | 2024-11-05. Later stops on the line (2025-03-26 onward) are added one at a time and never drop an earlier one. |
+| Protocol | 2025-03-26 and 2024-11-05. Later stops on the line (2025-06-18 onward) are added one at a time and never drop an earlier one. Batches are received, never sent. |
 
 ## Installation
 
@@ -123,7 +123,8 @@ $ printf '%s\n' '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protoc
 | Key | Default | What it does |
 |---|---|---|
 | `servers.default_discovery_namespace` | `App\Mcp\Servers` | Where `#[Server]` classes are found. Must sit under the application namespace. |
-| `servers.supported_mcp_versions` | `['2024-11-05']` | What a server will speak and what a client proposes (the latest). |
+| `servers.supported_mcp_versions` | `['2025-03-26', '2024-11-05']` | What a server will speak and what a client proposes (the latest). |
+| `client.stream_reconnects` | `5` | Streamable HTTP only: how many times in a row the listening stream is reopened after the server drops it without sending anything. |
 | `mcp_servers` | `[]` | The servers this application connects to, keyed by name: `type`, `command`, `args`, `env`, `cwd`, `disabled`. An entry with a `command` and no `type` is `stdio`, so a Claude Desktop entry pastes in as it is. |
 | `client.connect_timeout` | `20` | Seconds a client may spend between opening its connection and finishing the handshake. |
 | `pagination.page_size` | `50` | Entries per page of `tools/list`, `resources/list`, `resources/templates/list` and `prompts/list`. |
@@ -199,7 +200,7 @@ Point your agent at the repo and it has the same context the maintainer has. Poi
 
 ## Resources
 
-* [MCP specification 2024-11-05](https://modelcontextprotocol.io/specification/2024-11-05): the wire format this version serves and consumes.
+* [MCP specification 2025-03-26](https://modelcontextprotocol.io/specification/2025-03-26) and [2024-11-05](https://modelcontextprotocol.io/specification/2024-11-05): the wire formats this version serves and consumes.
 * [JSON-RPC 2.0](https://www.jsonrpc.org/specification): the envelope every message rides in.
 * [VenusianPHP](https://github.com/VenusianPHP): the framework, its sketches and the IOPools loop this module rides.
 * [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md): the spec the [`.okf/`](.okf/) bundle follows.

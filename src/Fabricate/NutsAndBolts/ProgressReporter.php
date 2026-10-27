@@ -29,7 +29,7 @@ final class ProgressReporter
         return new self(null, static fn (): null => null);
     }
 
-    public function report(float|int $progress, float|int|null $total = null): void
+    public function report(float|int $progress, float|int|null $total = null, ?string $message = null): void
     {
         // nothing asked for progress, the request already finished, or the value did not increase (the spec requires it to)
         if (is_null($this->token) || $this->finished || (! is_null($this->last) && $progress <= $this->last)) {
@@ -46,7 +46,7 @@ final class ProgressReporter
 
         $this->last = $progress;
         $this->last_sent_at = $now;
-        ($this->send)(new ProgressNotification($this->token, $progress, $total));
+        ($this->send)(new ProgressNotification($this->token, $progress, $total, $message));
     }
 
     // progress notifications must stop once the request completes

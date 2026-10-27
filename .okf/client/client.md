@@ -5,7 +5,7 @@ description: ClientManager, MCPClient, ClientBag, the start node, the handshake,
 resource: src/Fabricate/Client
 tags: [mcp, client, manager, promises]
 status: draft
-generated: { by: claude-fable/5.1, at: 2026-10-26T04:30:00Z }
+generated: { by: claude-fable/5.1, at: 2026-10-26T15:30:00Z }
 sources:
   - id: client
     resource: src/Fabricate/Client/MCPClient.php
@@ -48,3 +48,7 @@ Nothing in the handshake runs inside a promise callback: a throwing `then` callb
 # Ending
 
 `close()` is deliberate: status NotConnected, every pending promise rejected, `connection->close()`. `fail($why)` is not: status Error, `error` recorded, the same settling, `ready()` rejected if still pending. `connectionClosed($reason)` from the transport is a failure while Connecting or Connected and nothing after a deliberate close.
+
+# Ready is settled by the client, not read back from the promise
+
+`MCPClient` keeps its own flag for the ready promise. The loop's promise wrapper learns it is settled one queue flush after `resolve()`, so a failure landing in the very next frame (a Streamable HTTP server answering `404` to the listening GET right after the lists filled) would otherwise reject a fulfilled promise and throw. Any guard on `ready` reads the client's flag.

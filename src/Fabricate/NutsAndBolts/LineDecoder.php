@@ -34,6 +34,32 @@ use Fabricate\NutsAndBolts\Messages\Progress\ProgressNotification;
 
 class LineDecoder
 {
+    /**
+     * One line of the wire: a single message, or a JSON-RPC batch (a non-empty array of them).
+     * 2025-03-26 says every receiver takes batches; each element is decoded on its own, so one bad element never hides the rest.
+     *
+     * @return list<MCPMessage|MCPError>
+     */
+    public static function decode(string $line): array
+    {
+        $decoded = json_decode($line, true);
+
+        if (! is_array($decoded) || ! array_is_list($decoded)) {
+            return [static::decodeString($line)];
+        }
+
+        if ($decoded === []) {
+            return [new InvalidRequest(null, 'A batch must hold at least one message.')];
+        }
+
+        return array_map(
+            fn (mixed $message): MCPMessage|MCPError => is_array($message) && $message !== [] && ! array_is_list($message)
+                ? static::decodeString(json_encode($message))
+                : new InvalidRequest(null, 'A message must be a JSON object.'),
+            $decoded,
+        );
+    }
+
     public static function decodeString(string $line): MCPMessage|MCPError
     {
         $decoded = json_decode($line, true);

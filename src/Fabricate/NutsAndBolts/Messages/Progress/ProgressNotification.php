@@ -11,11 +11,14 @@ final readonly class ProgressNotification extends MCPNotification
         public string|int $progress_token,
         public float|int $progress,
         public float|int|null $total = null,
+        // 2025-03-26: a line describing where the work is
+        public ?string $message = null,
     ) {
         parent::__construct('notifications/progress', array_filter([
             'progressToken' => $progress_token,
             'progress' => $progress,
             'total' => $total,
+            'message' => $message,
         ], fn (mixed $value): bool => ! is_null($value)));
     }
 
@@ -33,11 +36,12 @@ final readonly class ProgressNotification extends MCPNotification
         $token = is_array($params) ? ($params['progressToken'] ?? null) : null;
         $progress = is_array($params) ? ($params['progress'] ?? null) : null;
         $total = is_array($params) ? ($params['total'] ?? null) : null;
+        $message = is_array($params) ? ($params['message'] ?? null) : null;
 
-        if ((! is_string($token) && ! is_int($token)) || (! is_int($progress) && ! is_float($progress)) || (! is_null($total) && ! is_int($total) && ! is_float($total))) {
+        if ((! is_string($token) && ! is_int($token)) || (! is_int($progress) && ! is_float($progress)) || (! is_null($total) && ! is_int($total) && ! is_float($total)) || (! is_null($message) && ! is_string($message))) {
             return null;
         }
 
-        return new self($token, $progress, $total);
+        return new self($token, $progress, $total, $message);
     }
 }
