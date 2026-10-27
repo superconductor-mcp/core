@@ -3,6 +3,8 @@
 use Fabricate\Client\ClientStatus;
 use Fabricate\Client\RequestFailed;
 use Fabricate\NutsAndBolts\Messages\Tools\CallToolResponse;
+use Fabricate\NutsAndBolts\Messages\Elicitation\ElicitAnswer;
+use Fabricate\NutsAndBolts\Messages\Elicitation\ElicitRequest;
 
 it('opens with initialize, finishes the handshake, and caches every page of each advertised list', function () {
     [$client, $connection] = fakeClient();
@@ -12,7 +14,7 @@ it('opens with initialize, finishes the handshake, and caches every page of each
         ->and($connection->opened)->toBeTrue()
         ->and($connection->sent[0]['method'])->toBe('initialize')
         ->and($connection->sent[0]['id'])->toBe(0)
-        ->and($connection->sent[0]['params']['protocolVersion'])->toBe('2025-03-26');
+        ->and($connection->sent[0]['params']['protocolVersion'])->toBe('2025-06-18');
 
     $connection->handshake(['tools' => ['listChanged' => true], 'prompts' => []]);
     expect($client->status())->toBe(ClientStatus::Connected)
@@ -74,11 +76,18 @@ it('gives up on the handshake at the connect deadline', function () {
     expect($client->status())->toBe(ClientStatus::Error)->and($client->lastError())->toContain('handshake');
 });
 
-function connected(): array
+// a server that declares tools, past the handshake and its first tools/list
+function connected(array $capabilities = ['tools' => ['listChanged' => true]], ?Closure $setup = null): array
 {
     [$client, $connection] = fakeClient();
+    $setup && $setup($client);
     $client->open();
-    $connection->handshake();
+    $connection->handshake($capabilities, '2025-06-18');
+
+    if (isset($capabilities['tools'])) {
+        $connection->reply(['id' => $connection->last()['id'], 'result' => ['tools' => []]]);
+    }
+
     $client->ready()->wait();
 
     return [$client, $connection];
@@ -174,4 +183,30 @@ it('turns into an error when the server goes away on its own', function () {
     $client->connectionClosed('the server exited (exit code 1).');
 
     expect($client->status())->toBe(ClientStatus::Error)->and($client->lastError())->toContain('exit code 1');
+});
+
+it('does not ask a server for what it did not declare', function () {
+    [$client] = connected();
+    expect(fn () => $client->listPrompts()->wait())->toThrow(RequestFailed::class, 'did not declare prompts');
+});
+
+it('declares elicitation when it has a handler, answers with it, and refuses an off-schema answer', function () {
+    $answers = [ElicitAnswer::accept(['name' => 'Ada']), ElicitAnswer::accept(['name' => 7])];
+    [$client, $connection] = connected(setup: fn ($client) => $client->onElicit(function (ElicitRequest $request) use (&$answers): ElicitAnswer {
+        return array_shift($answers);
+    }));
+    // an empty capability is a JSON object on the wire; Go and TS servers refuse an array
+    expect($connection->raw[0])->toContain('"capabilities":{"elicitation":{}}');
+
+    $ask = ['method' => 'elicitation/create', 'params' => ['message' => 'Name?', 'requestedSchema' => ['type' => 'object', 'properties' => ['name' => ['type' => 'string']]]]];
+    $connection->reply(['id' => 'e1', ...$ask]);
+    expect($connection->last())->toBe(['jsonrpc' => '2.0', 'id' => 'e1', 'result' => ['action' => 'accept', 'content' => ['name' => 'Ada']]]);
+
+    $connection->reply(['id' => 'e2', ...$ask]);
+    expect($connection->last()['error']['code'])->toBe(-32603)->and($connection->last()['error']['data'])->toContain('must be a string');
+
+    // without a handler the request is one this client does not have
+    [, $plain] = connected();
+    $plain->reply(['id' => 'e3', ...$ask]);
+    expect($plain->last()['error']['code'])->toBe(-32601);
 });

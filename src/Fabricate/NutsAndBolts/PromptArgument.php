@@ -14,12 +14,14 @@ class PromptArgument implements Arrayable
         public bool $required = false,
         /** @var Closure|class-string|null suggests values for completion/complete */
         public Closure|string|null $completer = null,
+        public ?string $title = null,
     ) {}
 
     public function toArray(): array
     {
         return array_filter([
             'name' => $this->name,
+            'title' => $this->title,
             'description' => $this->description,
             // required defaults to false, so it only goes out when true
             'required' => $this->required ?: null,

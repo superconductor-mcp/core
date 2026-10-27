@@ -11,6 +11,9 @@ use Voyager\Workflows\SharedBag;
 class MCPServerBag extends SharedBag
 {
     public ?MCPServer $server_configuration = null;
+
+    // the version initialize settled on; null until then
+    public ?string $protocol_version = null;
     public array $notifications = [];
 
     /** @var array<string, true> uris this session's client subscribed to with resources/subscribe */

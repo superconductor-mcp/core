@@ -3,6 +3,7 @@
 namespace Fabricate\Mechanism\Session;
 
 use Fabricate\NutsAndBolts\RequestIds;
+use Fabricate\NutsAndBolts\Messages\Responses\ReceivedResponse;
 use Fabricate\NutsAndBolts\MCPServerBag;
 use Fabricate\Mechanism\Session\Lifecycle\IdleState;
 use Fabricate\Mechanism\Session\Lifecycle\LifecycleState;
@@ -22,6 +23,18 @@ class SessionBag extends MCPServerBag
 
     /** @var array<string|int, true> in-flight requests the client cancelled; their responses are not sent */
     public array $cancelled = [];
+
+    /** @var array<string, true> requests this server sent to its client and still waits on, by Session::key() */
+    public array $awaiting = [];
+
+    /** @var array<string, ReceivedResponse> the client's answers to them, until whoever waits picks them up */
+    public array $answers = [];
+
+    // 2025-06-18 removed JSON-RPC batches; a session that negotiated it gets a batch refused
+    public function takesBatches(): bool
+    {
+        return ($this->protocol_version ?? '2024-11-05') < '2025-06-18';
+    }
 
     public function __construct()
     {

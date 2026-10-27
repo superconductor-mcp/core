@@ -2,6 +2,7 @@
 
 namespace Fabricate\NutsAndBolts\Schema;
 
+use Fabricate\NutsAndBolts\Meta;
 use InvalidArgumentException;
 use Voyager\Contracts\NutsAndBolts\Arrayable;
 use Fabricate\Contracts\Mechanism\SchemaPrimitive;
@@ -15,7 +16,11 @@ class ImageProperty implements Arrayable, SchemaPrimitive
     public function __construct(
         public string $data,
         public string $mime_type,
+        public ?Annotations $annotations = null,
+        public array $meta = [],
     ) {
+        Meta::check($meta);
+
         if (base64_decode($data, true) === false) {
             throw new InvalidArgumentException('ImageProperty data must be base64-encoded.');
         }
@@ -28,10 +33,11 @@ class ImageProperty implements Arrayable, SchemaPrimitive
     // one image item of a tool result's content
     public function toArray(): array
     {
-        return [
+        return Meta::attach(array_filter([
             'type' => 'image',
             'data' => $this->data,
             'mimeType' => $this->mime_type,
-        ];
+            'annotations' => $this->annotations?->toArray(),
+        ], fn (mixed $value): bool => ! is_null($value)), $this->meta);
     }
 }

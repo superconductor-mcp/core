@@ -16,7 +16,11 @@ class PromptDefinition implements Arrayable
         public ?string $description = null,
         public array $arguments = [],
         public Closure|string|null $action = null,
-    ) {}
+        public ?string $title = null,
+        public array $meta = [],
+    ) {
+        Meta::check($meta);
+    }
 
     public function argument(string $name): ?PromptArgument
     {
@@ -31,13 +35,14 @@ class PromptDefinition implements Arrayable
 
     public function toArray(): array
     {
-        return array_filter([
+        return Meta::attach(array_filter([
             'name' => $this->name,
+            'title' => $this->title,
             'description' => $this->description,
             // a prompt with no arguments leaves the key out
             'arguments' => $this->arguments === []
                 ? null
                 : array_map(fn (PromptArgument $argument): array => $argument->toArray(), array_values($this->arguments)),
-        ], fn (mixed $value): bool => ! is_null($value));
+        ], fn (mixed $value): bool => ! is_null($value)), $this->meta);
     }
 }

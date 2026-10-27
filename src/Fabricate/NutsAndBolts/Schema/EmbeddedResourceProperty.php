@@ -2,6 +2,7 @@
 
 namespace Fabricate\NutsAndBolts\Schema;
 
+use Fabricate\NutsAndBolts\Meta;
 use Voyager\Contracts\NutsAndBolts\Arrayable;
 use Fabricate\Contracts\Mechanism\SchemaPrimitive;
 
@@ -20,17 +21,21 @@ class EmbeddedResourceProperty implements Arrayable, SchemaPrimitive
         public ?string $mime_type = null,
         public ?string $text = null,
         public ?string $blob = null,
+        public ?Annotations $annotations = null,
+        public array $meta = [],
     ) {
         // the same contents shape resources/read returns, checked in one place
         $this->contents = new ResourceContents($uri, $mime_type, $text, $blob);
+        Meta::check($meta);
     }
 
     // one embedded-resource item of a tool result's content
     public function toArray(): array
     {
-        return [
+        return Meta::attach(array_filter([
             'type' => 'resource',
             'resource' => $this->contents->toArray(),
-        ];
+            'annotations' => $this->annotations?->toArray(),
+        ], fn (mixed $value): bool => ! is_null($value)), $this->meta);
     }
 }

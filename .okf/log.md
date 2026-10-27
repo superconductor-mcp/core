@@ -1,5 +1,17 @@
 # Log
 
+## 2026-10-27 (2025-06-18)
+
+* **Protocol 2025-06-18 added**, both earlier versions kept. The server records the negotiated version on its bag ([messages](protocol/messages.md)).
+* **Batches by version**: `LineDecoder::isBatch()`, `SessionBag::takesBatches()`; a 2025-06-18 session's batch is refused whole ([session](mechanism/session.md)).
+* **Capability gate** on both sides: `Capabilities` ([session](mechanism/session.md), [client](client/client.md)).
+* **Elicitation**, server and client, with a complete check of the 2025-06-18 schema subset ([elicitation](mechanism/elicitation.md)).
+* **Structured output**, **resource links**, **content annotations**, **`title`**, **`_meta`**, **completion context** ([messages](protocol/messages.md)).
+* **Initialize capabilities encoded as objects at every depth**: `"elicitation": []` was refused by a Go server.
+* Pest suite: 62 tests, 302 assertions. Proven with the TypeScript SDK 1.22.0 client (2025-06-18, elicitation handler) over stdio and Streamable HTTP, and against neo4j-mcp 1.5.3.
+* **Schemas are primitives**: `SchemaProperty` contract; `NumberProperty`, `IntegerProperty`, `BooleanProperty`, `EnumProperty`, `ArrayProperty`, `ObjectSchema` beside `StringProperty`. Tool inputs, output schemas and elicitation forms use them; the array checker is gone ([definitions](server/definitions.md)).
+* **Client content is typed**: `CallToolResponse`, `ReadResourceResponse`, `GetPromptResponse` hold only primitives; `fromReceived()` reads wire content through `Schema\Content` and `PromptMessage::fromArray()` ([client](client/client.md)).
+
 ## 2026-10-26 (2025-03-26)
 
 * **`Mechanism\Session`**: the server-side session logic lifted out of semiconductor/stdio so the HTTP transport runs the same node ([session](mechanism/session.md)). `SessionBag`, the three lifecycle states and the two notification actions moved here; stdio's bag and node now extend and delegate.

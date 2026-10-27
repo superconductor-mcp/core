@@ -29,7 +29,7 @@ Each DTO's `action` is a `Closure` or a class name. A class is built through the
 
 # Schema primitives
 
-`StringProperty(description)` describes a tool parameter. Results are `TextProperty(text)`, `ImageProperty(data, mime_type)` and `EmbeddedResourceProperty(uri, mime_type, text|blob)`, which wraps `ResourceContents`. Every one is `Arrayable` and renders its own wire shape.
+A schema is built from primitives, each a `SchemaProperty` that renders itself and checks a value (`problem()`): `StringProperty`, `NumberProperty`, `IntegerProperty`, `BooleanProperty`, `EnumProperty`, `ArrayProperty(items)` and `ObjectSchema(properties, required)`, which nests. A tool's `properties` are primitives by name; its `output_schema` is an `ObjectSchema`. Results are `TextProperty(text)`, `ImageProperty(data, mime_type)` and `EmbeddedResourceProperty(uri, mime_type, text|blob)`, which wraps `ResourceContents`. Every one is `Arrayable` and renders its own wire shape.
 
 # Lists are computed per call
 

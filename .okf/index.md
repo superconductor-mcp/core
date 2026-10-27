@@ -21,7 +21,8 @@ okf_version: "0.2"
 # Mechanism
 
 * [Procedures](mechanism/procedures.md) - The router, the procedure per method, the `ASYNC` flag and the fiber it buys.
-* [Session](mechanism/session.md) - One client's session, transport-neutral: lifecycle states, id ledgers, dispatch, respond, cancel, outbox. stdio and HTTP both run it.
+* [Session](mechanism/session.md) - One client's session, transport-neutral: lifecycle states, id ledgers, capability gate, dispatch, respond, cancel, outbox, requests to the client. stdio and HTTP both run it.
+* [Elicitation](mechanism/elicitation.md) - 2025-06-18: a handler asks the user mid-call through the client; the schema subset, its checks, timeout and cancellation.
 
 # Client
 

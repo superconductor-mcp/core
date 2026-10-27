@@ -17,6 +17,9 @@ use Fabricate\Mechanism\Workflows\LogIncomingMessage;
 use Fabricate\NutsAndBolts\Messages\Ping\PingRequest;
 use Fabricate\NutsAndBolts\Messages\Ping\PingResponse;
 use Fabricate\NutsAndBolts\Messages\Errors\MethodNotFound;
+use Fabricate\NutsAndBolts\Messages\Errors\InternalError;
+use Fabricate\NutsAndBolts\Messages\Elicitation\ElicitRequest;
+use Fabricate\NutsAndBolts\Messages\Elicitation\ElicitResponse;
 use Fabricate\NutsAndBolts\Messages\Errors\InvalidRequest;
 use Fabricate\NutsAndBolts\Messages\Responses\ReceivedResponse;
 use Fabricate\NutsAndBolts\Messages\Initialize\InitializeResponse;
@@ -138,11 +141,27 @@ class ClientStartNode extends Node
 
         new LogIncomingMessage($request)->dispatch($bag);
 
-        $this->connection->send(
-            $request instanceof PingRequest
-                ? (new PingResponse($request->id))->toJson()
-                : (new MethodNotFound($request->id, $request->method))->toJson()
-        );
+        $this->connection->send(match (true) {
+            $request instanceof PingRequest => (new PingResponse($request->id))->toJson(),
+            $request instanceof ElicitRequest && ! is_null($this->client->elicitHandler()) => $this->elicit($request),
+            default => (new MethodNotFound($request->id, $request->method))->toJson(),
+        });
+    }
+
+    // the application's handler shows the question; its answer is checked against the schema before it goes back
+    protected function elicit(ElicitRequest $request): string
+    {
+        try {
+            $answer = ($this->client->elicitHandler())($request, $this->client);
+        } catch (Throwable $e) {
+            return (new InternalError($request->id, "the elicitation handler failed: {$e->getMessage()}"))->toJson();
+        }
+
+        if ($answer->accepted() && ! is_null($problem = $request->requested_schema->problem($answer->content))) {
+            return (new InternalError($request->id, "the answer does not match the requested schema: {$problem}"))->toJson();
+        }
+
+        return (new ElicitResponse($request->id, $answer))->toJson();
     }
 
     protected function processNotification(MCPNotification $notification, ClientBag $bag): void

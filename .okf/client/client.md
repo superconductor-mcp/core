@@ -34,7 +34,7 @@ sources:
 
 The connection calls `receive($messages)` with each batch of decoded lines; a `Flow` runs `ClientStartNode` over them.
 
-- `ReceivedResponse`: look up `pending`; none → log. An error reply or a `fromReceived()` throw rejects with `RequestFailed` (`rpc_code`, `data`); an `InitializeResponse` failing calls `fail()`; a failing cache fill keeps what was gathered. A good reply resolves the promise, then: an `InitializeResponse` → `handshakeDone()`; a fill page → gather and ask for the next page or hand the list to `filled()`.
+- `ReceivedResponse`: look up `pending`; none → log. An error reply or a `fromReceived()` throw rejects with `RequestFailed` (`rpc_code`, `data`); an `InitializeResponse` failing calls `fail()`; a failing cache fill keeps what was gathered. `fromReceived()` reads content into the server-side primitives through `Schema\Content`, so both sides hold the same types. A good reply resolves the promise, then: an `InitializeResponse` → `handshakeDone()`; a fill page → gather and ask for the next page or hand the list to `filled()`.
 - `MCPRequest` from the server: `their_ids->receive()` or `InvalidRequest`; `ping` → `PingResponse`; anything else → `MethodNotFound`.
 - `MCPNotification`: `list_changed` → `fill()` that kind; `message` → the application log at the sent level; others logged.
 - `JsonRpcError` from the decoder: sent back when it `replies()` (an unknown server request gets its `MethodNotFound`), logged otherwise.
@@ -44,6 +44,10 @@ Nothing in the handshake runs inside a promise callback: a throwing `then` callb
 # Handshake and ready
 
 `handshakeDone()`: a version outside `supported_mcp_versions` fails the client; otherwise record the server's answer, send `notifications/initialized`, status Connected, and `fill()` each list kind the capabilities advertise (`tools`, `resources` plus `resource_templates`, `prompts`). `ready()` resolves with the client when `initial_lists` is empty; with nothing advertised, at once. A fill walks every page with the cursor and replaces the cache atomically; a `list_changed` runs the same fill again.
+
+# Capabilities and elicitation
+
+A request for a method whose capability the server did not declare is rejected before it leaves (`RequestFailed` "did not declare ..."), from the handshake on. `onElicit()` adds the client's one optional capability; see [elicitation](../mechanism/elicitation.md).
 
 # Ending
 

@@ -2,6 +2,7 @@
 
 namespace Fabricate\NutsAndBolts\Schema;
 
+use Fabricate\NutsAndBolts\Meta;
 use InvalidArgumentException;
 use Voyager\Contracts\NutsAndBolts\Arrayable;
 
@@ -17,7 +18,10 @@ class ResourceContents implements Arrayable
         public ?string $mime_type = null,
         public ?string $text = null,
         public ?string $blob = null,
+        public array $meta = [],
     ) {
+        Meta::check($meta);
+
         if (is_null($text) === is_null($blob)) {
             throw new InvalidArgumentException('ResourceContents needs exactly one of text or blob.');
         }
@@ -29,11 +33,11 @@ class ResourceContents implements Arrayable
 
     public function toArray(): array
     {
-        return array_filter([
+        return Meta::attach(array_filter([
             'uri' => $this->uri,
             'mimeType' => $this->mime_type,
             'text' => $this->text,
             'blob' => $this->blob,
-        ], fn (?string $value): bool => ! is_null($value));
+        ], fn (?string $value): bool => ! is_null($value)), $this->meta);
     }
 }

@@ -28,6 +28,7 @@ class InitializeProcedure extends Procedure
             ? $request->protocol_version
             : max($supported); // versions are ISO dates, so the greatest string is the latest
 
+        $bag->protocol_version = $protocol_version;
         $capabilities = $server->capabilities();
 
         return new InitializeResponse(

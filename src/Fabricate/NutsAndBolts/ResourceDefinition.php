@@ -2,6 +2,7 @@
 
 namespace Fabricate\NutsAndBolts;
 
+use Fabricate\NutsAndBolts\Schema\Annotations;
 use Closure;
 use Voyager\Contracts\NutsAndBolts\Arrayable;
 
@@ -14,15 +15,22 @@ class ResourceDefinition implements Arrayable
         public ?string $description = null,
         public ?string $mime_type = null,
         public Closure|string|null $action = null,
-    ) {}
+        public ?string $title = null,
+        public ?Annotations $annotations = null,
+        public array $meta = [],
+    ) {
+        Meta::check($meta);
+    }
 
     public function toArray(): array
     {
-        return array_filter([
+        return Meta::attach(array_filter([
             'uri' => $this->uri,
             'name' => $this->name,
+            'title' => $this->title,
             'description' => $this->description,
             'mimeType' => $this->mime_type,
-        ], fn (?string $value): bool => ! is_null($value));
+            'annotations' => $this->annotations?->toArray(),
+        ], fn (mixed $value): bool => ! is_null($value)), $this->meta);
     }
 }

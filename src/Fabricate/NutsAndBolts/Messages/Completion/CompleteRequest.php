@@ -19,10 +19,13 @@ final readonly class CompleteRequest extends MCPRequest
         public string $ref,
         public string $argument_name,
         public string $argument_value,
+        /** @var array<string, string> 2025-06-18: arguments the user already settled, for completers that depend on them */
+        public array $context_arguments = [],
     ) {
         parent::__construct($id, 'completion/complete', [
             'ref' => ['type' => $ref_type, $ref_type === 'ref/prompt' ? 'name' : 'uri' => $ref],
             'argument' => ['name' => $argument_name, 'value' => $argument_value],
+            ...($context_arguments === [] ? [] : ['context' => ['arguments' => (object) $context_arguments]]),
         ]);
     }
 
@@ -58,6 +61,13 @@ final readonly class CompleteRequest extends MCPRequest
             return new InvalidParams($id, 'params.argument must be an object with a string name and value.');
         }
 
-        return new CompleteRequest($id, $ref['type'], $ref[$key], $argument['name'], $argument['value']);
+        $context = $params['context'] ?? null;
+        $settled = is_array($context) ? ($context['arguments'] ?? []) : [];
+
+        if ((! is_null($context) && ! CompleteRequest::isObject($context)) || ! is_array($settled) || ($settled !== [] && (array_is_list($settled) || array_filter($settled, 'is_string') !== $settled))) {
+            return new InvalidParams($id, 'params.context.arguments must be an object of strings.');
+        }
+
+        return new CompleteRequest($id, $ref['type'], $ref[$key], $argument['name'], $argument['value'], $settled);
     }
 }

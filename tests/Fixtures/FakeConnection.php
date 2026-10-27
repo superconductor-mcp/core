@@ -30,8 +30,12 @@ final class FakeConnection implements Connection
         $this->opened = true;
     }
 
+    /** @var list<string> every line exactly as it went out, for checks a decoded array cannot make ({} vs []) */
+    public array $raw = [];
+
     public function send(string $line): void
     {
+        $this->raw[] = $line;
         $this->sent[] = json_decode($line, true);
     }
 

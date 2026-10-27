@@ -65,7 +65,8 @@ class CompleteProcedure extends Procedure
         }
 
         try {
-            $result = $completer($request->argument_value);
+            // the settled arguments go second; a completer that does not take them ignores them
+            $result = $completer($request->argument_value, $request->context_arguments);
         } catch (Throwable $e) {
             return new InternalError($request->id, $e->getMessage());
         }

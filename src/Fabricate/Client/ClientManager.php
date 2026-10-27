@@ -2,6 +2,7 @@
 
 namespace Fabricate\Client;
 
+use Closure;
 use InvalidArgumentException;
 use Voyager\Contracts\IOPools\Loop;
 use Voyager\Contracts\IOPools\IOPoolsException;
@@ -127,9 +128,24 @@ class ClientManager extends MultipleInstanceManager
     }
 
     // a resolved client is opened at once, unless its entry is disabled
+    /** @var Closure(ElicitRequest, MCPClient): ElicitAnswer|null */
+    protected ?Closure $elicit = null;
+
+    // every client this manager builds from here on answers elicitation/create with this handler
+    public function onElicit(Closure $handler): static
+    {
+        $this->elicit = $handler;
+
+        return $this;
+    }
+
     protected function resolve(string $name): mixed
     {
         $client = parent::resolve($name);
+
+        if (! is_null($this->elicit)) {
+            $client->onElicit($this->elicit);
+        }
 
         if ($this->getInstanceConfig($name)['disabled'] ?? false) {
             $client->disable();

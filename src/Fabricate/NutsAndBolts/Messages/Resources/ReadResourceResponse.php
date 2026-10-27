@@ -5,6 +5,8 @@ namespace Fabricate\NutsAndBolts\Messages\Resources;
 use Fabricate\NutsAndBolts\Messages\MCPResponse;
 use UnexpectedValueException;
 use Fabricate\NutsAndBolts\Messages\Responses\ReceivedResponse;
+use InvalidArgumentException;
+use Fabricate\NutsAndBolts\Schema\Content;
 use Fabricate\NutsAndBolts\Schema\ResourceContents;
 
 final readonly class ReadResourceResponse extends MCPResponse
@@ -26,7 +28,7 @@ final readonly class ReadResourceResponse extends MCPResponse
             'id' => $this->id,
             'result' => [
                 'contents' => array_map(
-                    fn (ResourceContents|array $contents): array => $contents instanceof ResourceContents ? $contents->toArray() : $contents,
+                    fn (ResourceContents $contents): array => $contents->toArray(),
                     array_values($this->contents),
                 ),
             ],
@@ -41,6 +43,10 @@ final readonly class ReadResourceResponse extends MCPResponse
             throw new UnexpectedValueException('resources/read result needs a contents array.');
         }
 
-        return new self($response->id, array_values($result['contents']));
+        try {
+            return new self($response->id, array_map(Content::resource(...), array_values($result['contents'])));
+        } catch (InvalidArgumentException $e) {
+            throw new UnexpectedValueException("resources/read contents: {$e->getMessage()}");
+        }
     }
 }

@@ -4,6 +4,7 @@ namespace Fabricate\NutsAndBolts\Messages\Prompts;
 
 use Fabricate\NutsAndBolts\PromptMessage;
 use UnexpectedValueException;
+use InvalidArgumentException;
 use Fabricate\NutsAndBolts\Messages\Responses\ReceivedResponse;
 use Fabricate\NutsAndBolts\Messages\MCPResponse;
 
@@ -24,7 +25,7 @@ final readonly class GetPromptResponse extends MCPResponse
     {
         $result = [
             // messages is always a JSON array
-            'messages' => array_map(fn (PromptMessage|array $message): array => $message instanceof PromptMessage ? $message->toArray() : $message, array_values($this->messages)),
+            'messages' => array_map(fn (PromptMessage $message): array => $message->toArray(), array_values($this->messages)),
         ];
 
         if (! is_null($this->description)) {
@@ -47,6 +48,10 @@ final readonly class GetPromptResponse extends MCPResponse
             throw new UnexpectedValueException('prompts/get result needs a messages array and, when present, a string description.');
         }
 
-        return new self($response->id, array_values($result['messages']), $description);
+        try {
+            return new self($response->id, array_map(PromptMessage::fromArray(...), array_values($result['messages'])), $description);
+        } catch (InvalidArgumentException $e) {
+            throw new UnexpectedValueException("prompts/get messages: {$e->getMessage()}");
+        }
     }
 }

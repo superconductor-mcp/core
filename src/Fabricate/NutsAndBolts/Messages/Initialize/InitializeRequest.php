@@ -75,7 +75,8 @@ final readonly class InitializeRequest extends MCPRequest
             'method' => $this->method,
             'params' => [
                 'protocolVersion' => $this->protocol_version,
-                'capabilities' => static::object($this->capabilities),
+                // every capability is a JSON object at every depth, empty ones included ("elicitation": {}), as the server side does
+                'capabilities' => json_decode(json_encode($this->capabilities, JSON_FORCE_OBJECT)),
                 'clientInfo' => $this->client_info,
             ],
         ]);

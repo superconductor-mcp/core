@@ -2,6 +2,10 @@
 
 namespace Fabricate\Client;
 
+use Closure;
+use Fabricate\NutsAndBolts\Capabilities;
+use Fabricate\NutsAndBolts\Messages\Elicitation\ElicitAnswer;
+use Fabricate\NutsAndBolts\Messages\Elicitation\ElicitRequest;
 use Throwable;
 use Voyager\Workflows\Flow;
 use Fabricate\Mechanism\MCPMechanism;
@@ -56,6 +60,9 @@ class MCPClient extends MCPMechanism
     // settled by this client; the promise's own flag only turns once the engine has flushed its callbacks, a frame later
     private bool $ready_settled = false;
 
+    /** @var Closure(ElicitRequest, MCPClient): ElicitAnswer|null answers elicitation/create; set before open() so initialize declares it */
+    private ?Closure $elicit = null;
+
     public function __construct(
         protected readonly string $name,
         protected readonly Loop $event_loop,
@@ -63,6 +70,20 @@ class MCPClient extends MCPMechanism
         $this->bag = new ClientBag();
         $this->ready = $this->event_loop->promise();
         $this->entity_info = ['name' => (string) config('app.name', 'Venusian'), 'version' => self::VERSION];
+    }
+
+    // 2025-06-18: the server may ask the user something mid-call; the handler shows the question and returns the answer
+    public function onElicit(Closure $handler): static
+    {
+        $this->elicit = $handler;
+        $this->entity_capabilities['elicitation'] = [];
+
+        return $this;
+    }
+
+    public function elicitHandler(): ?Closure
+    {
+        return $this->elicit;
     }
 
     public function attach(Connection $connection): static
@@ -204,6 +225,15 @@ class MCPClient extends MCPMechanism
 
         if (! $allowed) {
             $promise->reject(new RequestFailed("{$request->method}: client [{$this->name}] is {$this->bag->status->value}."));
+
+            return $promise;
+        }
+
+        // only what the server declared may be asked for
+        $needs = $this->bag->status === ClientStatus::Connected ? Capabilities::requiredBy($request->method, $this->bag->protocol_version) : null;
+
+        if (! is_null($needs) && ! Capabilities::declares($this->bag->server_capabilities, $needs)) {
+            $promise->reject(new RequestFailed("{$request->method}: server [{$this->name}] did not declare ".implode('.', $needs).'.'));
 
             return $promise;
         }

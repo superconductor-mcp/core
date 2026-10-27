@@ -24,3 +24,4 @@ sources:
 | `completion.rate_limit.max` / `.per_seconds` | `10` / `1` | `CompleteProcedure` |
 
 A published copy (`vendor:publish --tag=mcp-config`) overrides the merged defaults entirely, so a key added here is added to every published copy too.
+| `elicitation.timeout` | `600` | `Elicitation::ask()`: seconds a handler waits for the user before it cancels the question |

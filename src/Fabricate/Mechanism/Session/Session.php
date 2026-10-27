@@ -7,6 +7,9 @@ use Throwable;
 use Voyager\Contracts\IOPools\Loop;
 use Fabricate\Mechanism\ProcedureRouter;
 use Fabricate\NutsAndBolts\RequestMeta;
+use Fabricate\NutsAndBolts\Capabilities;
+use Fabricate\NutsAndBolts\Messages\Errors\MethodNotFound;
+use Fabricate\NutsAndBolts\Messages\Responses\ReceivedResponse;
 use Fabricate\NutsAndBolts\ProgressReporter;
 use Fabricate\NutsAndBolts\Messages\MCPRequest;
 use Fabricate\NutsAndBolts\Messages\MCPResponse;
@@ -46,6 +49,14 @@ final class Session
     {
         if ($message instanceof MCPRequest) {
             $this->request($message, $send);
+        } elseif ($message instanceof ReceivedResponse) {
+            // an answer to a request this server sent; one nobody waits for is ignored, as the cancellation rules expect
+            $key = self::key($message->id);
+
+            if (isset($this->bag->awaiting[$key])) {
+                unset($this->bag->awaiting[$key]);
+                $this->bag->answers[$key] = $message;
+            }
         } elseif ($message instanceof MCPNotification) {
             $this->notification($message);
         } elseif ($message instanceof JsonRpcError) {
@@ -58,6 +69,19 @@ final class Session
         }
 
         return true;
+    }
+
+    // a request from this server to its client; the answer lands in the bag's answers under Session::key($request->id)
+    public function ask(MCPRequest $request, Closure $send): void
+    {
+        $this->bag->awaiting[self::key($request->id)] = true;
+        $send($request->toJson());
+    }
+
+    // ids may be strings or ints, and "1" is not 1
+    public static function key(string|int|null $id): string
+    {
+        return (is_int($id) ? 'i:' : 's:').$id;
     }
 
     // sends what the server queued, filtered by what this session's client wants; nothing reaches a client before the handshake
@@ -95,6 +119,15 @@ final class Session
             return;
         }
 
+        // a method whose capability this server did not declare is one it does not have
+        $needs = Capabilities::requiredBy($request->method, $bag->protocol_version);
+
+        if (! is_null($needs) && ! Capabilities::declares($bag->server_configuration?->capabilities() ?? [], $needs)) {
+            $send((new MethodNotFound($request->id, $request->method))->toJson());
+
+            return;
+        }
+
         $bag->in_flight[$request->id] = true;
 
         // whatever handles this request can report progress through the container's ProgressReporter;
@@ -102,12 +135,14 @@ final class Session
         $run = function () use ($request, $bag, $send): MCPResponse {
             $progress = $this->progressReporter($request, $send);
             app()->registerInstance(ProgressReporter::class, $progress);
+            app()->registerInstance(Elicitation::class, new Elicitation($this, $send, $request->id, $this->event_loop));
 
             try {
                 return $this->router->dispatch($request, $bag);
             } finally {
                 $progress->finish();
                 app()->registerInstance(ProgressReporter::class, ProgressReporter::silent());
+                app()->registerInstance(Elicitation::class, Elicitation::unavailable());
             }
         };
 

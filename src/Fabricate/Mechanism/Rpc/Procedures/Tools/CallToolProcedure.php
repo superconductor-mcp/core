@@ -16,6 +16,7 @@ use Fabricate\Mechanism\Rpc\Procedures\Procedure;
 use Fabricate\NutsAndBolts\Messages\Errors\InvalidParams;
 use Fabricate\NutsAndBolts\Messages\Errors\ToolCallError;
 use Fabricate\NutsAndBolts\Schema\TextProperty;
+use Fabricate\NutsAndBolts\Schema\StructuredContent;
 use Fabricate\NutsAndBolts\Messages\Errors\JsonRpcError;
 use Fabricate\NutsAndBolts\Messages\Errors\MethodNotFound;
 use Fabricate\NutsAndBolts\Messages\Tools\CallToolRequest;
@@ -53,6 +54,14 @@ class CallToolProcedure extends Procedure
             return new CallToolResponse($request->id, [new TextProperty($e->getMessage())], true);
         }
 
+        // 2025-06-18: a structured result carries its data beside the content
+        $structured = null;
+
+        if ($result instanceof StructuredContent) {
+            $structured = $result->data;
+            $result = $result->content();
+        }
+
         // 4. a tool returns one schema primitive or a list of them; the response bundles them as content
         $content = $result instanceof SchemaPrimitive ? [$result] : $result;
 
@@ -64,7 +73,7 @@ class CallToolProcedure extends Procedure
             );
         }
 
-        return new CallToolResponse($request->id, $content);
+        return new CallToolResponse($request->id, $content, structured: $structured);
     }
 
     protected function offered(string $name, MCPServerBag $bag): ?ToolDefinition

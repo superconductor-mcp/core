@@ -2,6 +2,7 @@
 
 namespace Fabricate\NutsAndBolts;
 
+use Fabricate\NutsAndBolts\Schema\Annotations;
 use Closure;
 use Voyager\Contracts\NutsAndBolts\Arrayable;
 
@@ -16,7 +17,12 @@ class ResourceTemplateDefinition implements Arrayable
         public Closure|string|null $action = null,
         /** @var array<string, Closure|class-string> completers per template variable, for completion/complete */
         public array $completers = [],
-    ) {}
+        public ?string $title = null,
+        public ?Annotations $annotations = null,
+        public array $meta = [],
+    ) {
+        Meta::check($meta);
+    }
 
     /** @return list<string> the names of the template's {variables}, in order */
     public function variables(): array
@@ -28,12 +34,14 @@ class ResourceTemplateDefinition implements Arrayable
 
     public function toArray(): array
     {
-        return array_filter([
+        return Meta::attach(array_filter([
             'uriTemplate' => $this->uri_template,
             'name' => $this->name,
+            'title' => $this->title,
             'description' => $this->description,
             'mimeType' => $this->mime_type,
-        ], fn (?string $value): bool => ! is_null($value));
+            'annotations' => $this->annotations?->toArray(),
+        ], fn (mixed $value): bool => ! is_null($value)), $this->meta);
     }
 
     /**

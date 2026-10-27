@@ -31,6 +31,7 @@ use Fabricate\NutsAndBolts\Messages\Prompts\PromptListChangedNotification;
 use Fabricate\NutsAndBolts\Messages\Resources\ResourceUpdatedNotification;
 use Fabricate\NutsAndBolts\Messages\Logging\LoggingMessageNotification;
 use Fabricate\NutsAndBolts\Messages\Progress\ProgressNotification;
+use Fabricate\NutsAndBolts\Messages\Elicitation\ElicitRequest;
 
 class LineDecoder
 {
@@ -58,6 +59,12 @@ class LineDecoder
                 : new InvalidRequest(null, 'A message must be a JSON object.'),
             $decoded,
         );
+    }
+
+    // a JSON array at the top level: 2025-03-26 allows it, 2025-06-18 removed it, so the receiver decides by version
+    public static function isBatch(string $line): bool
+    {
+        return str_starts_with(ltrim($line), '[');
     }
 
     public static function decodeString(string $line): MCPMessage|MCPError
@@ -119,6 +126,8 @@ class LineDecoder
                 'completion/complete' => CompleteRequest::generate($id, $method, $params),
                 'prompts/list' => ListPromptsRequest::generate($id, $method, $params),
                 'prompts/get' => GetPromptRequest::generate($id, $method, $params),
+                // the one request a server sends its client that the client side routes beyond ping
+                'elicitation/create' => ElicitRequest::generate($id, $method, $params),
                 default => static::handleUnknownMessage($line),
             };
 

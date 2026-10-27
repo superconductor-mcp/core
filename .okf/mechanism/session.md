@@ -40,6 +40,18 @@ A refused request gets `InvalidRequest` "Method [x] is not allowed." with its id
 
 `bag->notifications` maps a method to an action class with `handle(SessionBag $bag, $notification)`. Shipped in `Session\Actions`: `InitializedAction` (next state), `CancelledAction` (mark `cancelled[id]` when in flight). The transport's config holds the map (`stdio.notifications`, `web.notifications`); an unlisted method is logged and ignored.
 
+# Capability gate
+
+After the lifecycle check, `Capabilities::requiredBy()` names the capability a method needs at the negotiated version; if the server's `capabilities()` does not declare it, the request is answered `MethodNotFound`. 2025-06-18 makes "use only what was negotiated" a MUST on both sides.
+
+# Requests to the client
+
+`Session::ask(MCPRequest, $send)` sends a server-to-client request and parks its id (`Session::key()`, so `"1"` and `1` stay apart) in `SessionBag::$awaiting`. A `ReceivedResponse` given to `handle()` with a parked id lands in `SessionBag::$answers`; one nobody waits for is dropped. [Elicitation](elicitation.md) is the user; it waits on the bag, not on a promise.
+
+# Batches
+
+`SessionBag::takesBatches()` is true below 2025-06-18. A transport asks it before opening a batch and refuses the whole batch otherwise.
+
 # What a transport adds
 
 stdio: `STDIOBag` with `stop_waiting`, `ping_timer`, pings with `own_ids`; `STDIOLoopStartNode` handles `PingDue`, `PipeClosed`, `HandshakeTimedOut` and the ping replies, delegates the rest. HTTP (semiconductor/sse): `HttpSession` routes a POST's replies to that POST and the server's own lines to the listening stream ring; no pings, an idle timeout instead.

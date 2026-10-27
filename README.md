@@ -6,7 +6,7 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/superconductor-mcp/mcp/tests.yml?style=flat-square&label=CI)](https://github.com/superconductor-mcp/mcp/actions/workflows/tests.yml)
 [![Packagist](https://img.shields.io/packagist/v/superconductor/mcp?style=flat-square)](https://packagist.org/packages/superconductor/mcp)
 [![PHP](https://img.shields.io/packagist/dependency-v/superconductor/mcp/php?style=flat-square&label=PHP)](https://packagist.org/packages/superconductor/mcp)
-[![MCP](https://img.shields.io/badge/MCP-2025--03--26-5b4ee6?style=flat-square)](https://modelcontextprotocol.io/specification/2025-03-26)
+[![MCP](https://img.shields.io/badge/MCP-2025--06--18-5b4ee6?style=flat-square)](https://modelcontextprotocol.io/specification/2025-06-18)
 [![License](https://img.shields.io/github/license/superconductor-mcp/mcp?style=flat-square)](LICENSE)
 [![OKF](https://img.shields.io/badge/OKF-0.2-6f42c1?style=flat-square&label=knowledge%20bundle)](.okf/index.md)
 
@@ -92,7 +92,7 @@ $clients->closeAll();                           // each server shut down in the 
 | PHP | 8.4 or newer. |
 | VenusianPHP | A 0.10 application: `venusian-voyager/console`, `contracts`, `io-pools`, `nuts-and-bolts` and `workflows`. |
 | A transport | One `semiconductor/*` package. Today that is [semiconductor/stdio](https://github.com/superconductor-mcp/stdio). |
-| Protocol | 2025-03-26 and 2024-11-05. Later stops on the line (2025-06-18 onward) are added one at a time and never drop an earlier one. Batches are received, never sent. |
+| Protocol | 2025-06-18, 2025-03-26 and 2024-11-05. Later stops on the line are added one at a time and never drop an earlier one. Batches are received from sessions below 2025-06-18, never sent. |
 
 ## Installation
 
@@ -123,7 +123,8 @@ $ printf '%s\n' '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protoc
 | Key | Default | What it does |
 |---|---|---|
 | `servers.default_discovery_namespace` | `App\Mcp\Servers` | Where `#[Server]` classes are found. Must sit under the application namespace. |
-| `servers.supported_mcp_versions` | `['2025-03-26', '2024-11-05']` | What a server will speak and what a client proposes (the latest). |
+| `servers.supported_mcp_versions` | `['2025-06-18', '2025-03-26', '2024-11-05']` | What a server will speak and what a client proposes (the latest). |
+| `elicitation.timeout` | `600` | Seconds a handler waits for the user's answer before it cancels the question. |
 | `client.stream_reconnects` | `5` | Streamable HTTP only: how many times in a row the listening stream is reopened after the server drops it without sending anything. |
 | `mcp_servers` | `[]` | The servers this application connects to, keyed by name: `type`, `command`, `args`, `env`, `cwd`, `disabled`. An entry with a `command` and no `type` is `stdio`, so a Claude Desktop entry pastes in as it is. |
 | `client.connect_timeout` | `20` | Seconds a client may spend between opening its connection and finishing the handshake. |
@@ -138,7 +139,7 @@ Everything a server offers is a definition. A definition's `action` is a closure
 
 | Offer | Definition | Action attribute | `handle()` returns |
 |---|---|---|---|
-| Tool | `ToolDefinition(name, description, properties, required, action)` | `#[ToolCall]` | A `SchemaPrimitive` or a list of them: `TextProperty`, `ImageProperty`, `EmbeddedResourceProperty`. Throwing reports `isError` in the result. |
+| Tool | `ToolDefinition(name, description, properties, required, action)`; named `title`, `annotations`, `output_schema`, `meta` | `#[ToolCall]` | A `SchemaPrimitive` or a list of them: `TextProperty`, `ImageProperty`, `AudioProperty`, `EmbeddedResourceProperty`, `ResourceLinkProperty`. Or `StructuredContent($data)` for a data result. Throwing reports `isError` in the result. |
 | Resource | `ResourceDefinition(uri, name, description, mimeType, action)` | `#[ResourceRead]` | `ResourceContents(uri, mimeType, text or blob)`. |
 | Resource template | `ResourceTemplateDefinition(uriTemplate, name, description, mimeType, action, completers)` | `#[ResourceRead]` | `ResourceContents`; the `{variables}` of the template arrive as arguments. |
 | Prompt | `PromptDefinition(name, description, arguments, action)` with `PromptArgument(name, description, required, completer)` | `#[PromptGet]` | A list of `PromptMessage::user(…)` / `PromptMessage::assistant(…)`. |
@@ -150,6 +151,29 @@ Override `tools()`, `resources()`, `resourceTemplates()` or `prompts()` to compu
 $this->notify(new ToolListChangedNotification());       // sent only if tools.listChanged is advertised
 $this->notify(new ResourceUpdatedNotification($uri));   // reaches only sessions subscribed to $uri
 $this->log(LogLevel::Info, 'document.flipped', ['visible' => false]);   // filtered by each session's level
+```
+
+Every definition takes a `title` for display, and resources and content items take `Annotations` (audience, priority, last modified).
+
+A tool that returns data declares an `output_schema` and returns `StructuredContent`; the client gets `structuredContent` plus the same JSON as text. Nothing checks the data against the schema; the tool keeps that promise.
+
+```php
+new ToolDefinition('measure_part', 'Measures the part', action: MeasurePartTool::class, title: 'Measure the part',
+    output_schema: new ObjectSchema(['area_mm2' => new NumberProperty()], ['area_mm2']));
+
+// MeasurePartTool::handle()
+return new StructuredContent(['area_mm2' => 1000.0]);
+```
+
+A tool that needs the user mid-call takes `Elicitation` in its constructor (2025-06-18; the client must have declared it):
+
+```php
+$answer = $this->elicitation->ask('How should the part be made?', new ObjectSchema(
+    ['material' => new EnumProperty(['steel', 'pla']), 'thickness' => new NumberProperty(minimum: 0.5)],
+    ['material'],
+));
+
+$answer->accepted() ? $answer->content['material'] : $answer->action->value;   // accept, decline or cancel
 ```
 
 A tool that runs long takes a `ProgressReporter` in its constructor and calls `report($progress, $total)`; the notifications go out while it runs. Tool calls, resource reads, prompt gets and completion run in a loop fiber, so a tool that waits on the loop (`$loop->await(…)`, `$loop->until(…)`) keeps the server answering pings and honouring `notifications/cancelled` meanwhile.
@@ -174,11 +198,20 @@ A tool that runs long takes a `ProgressReporter` in its constructor and calls `r
 | `ready()` | A promise resolving with the client once the handshake is done and every list the server advertises is cached; rejected with `RequestFailed` when connecting failed. |
 | `serverInfo()`, `serverCapabilities()`, `protocolVersion()` | What the handshake negotiated. |
 | `tools()`, `resources()`, `resourceTemplates()`, `prompts()` | The caches, every page, refilled when the server sends a `list_changed`. |
-| `ping()`, `listTools($cursor)`, `callTool($name, $args)`, `listResources($cursor)`, `listResourceTemplates($cursor)`, `readResource($uri)`, `listPrompts($cursor)`, `getPrompt($name, $args)` | A promise of the typed response. A JSON-RPC error reply rejects it with `RequestFailed` carrying `rpc_code` and `data`. |
+| `ping()`, `listTools($cursor)`, `callTool($name, $args)`, `listResources($cursor)`, `listResourceTemplates($cursor)`, `readResource($uri)`, `listPrompts($cursor)`, `getPrompt($name, $args)` | A promise of the typed response. Content comes back as the same primitives a server sends (`TextProperty`, `ResourceContents`, `PromptMessage`, …); content that does not fit them rejects. A JSON-RPC error reply rejects it with `RequestFailed` carrying `rpc_code` and `data`. |
 | `request(MCPRequest, $responseClass)` | The same for any request class. |
 | `close()` | Rejects what is pending and ends the connection. |
 
-The client answers the server's pings, refuses a server id it has already seen, and logs the server's `notifications/message` lines into the application log at the level they were sent.
+The client answers the server's pings, refuses a server id it has already seen, logs the server's `notifications/message` lines into the application log at the level they were sent, and refuses to ask a server for a capability it did not declare.
+
+To answer elicitation, set a handler before the client connects; it shows the question and returns the user's answer:
+
+```php
+app(ClientManager::class)->onElicit(function (ElicitRequest $request, MCPClient $client): ElicitAnswer {
+    // $request->message, $request->requested_schema: a flat object of string, number, integer, boolean or enum fields
+    return ElicitAnswer::accept(['material' => 'pla', 'thickness' => 2.0]);   // or ElicitAnswer::decline(), ::cancel()
+});
+```
 
 ## Packages you might use with this one
 
@@ -200,7 +233,7 @@ Point your agent at the repo and it has the same context the maintainer has. Poi
 
 ## Resources
 
-* [MCP specification 2025-03-26](https://modelcontextprotocol.io/specification/2025-03-26) and [2024-11-05](https://modelcontextprotocol.io/specification/2024-11-05): the wire formats this version serves and consumes.
+* [MCP specification 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18), [2025-03-26](https://modelcontextprotocol.io/specification/2025-03-26) and [2024-11-05](https://modelcontextprotocol.io/specification/2024-11-05): the wire formats this version serves and consumes.
 * [JSON-RPC 2.0](https://www.jsonrpc.org/specification): the envelope every message rides in.
 * [VenusianPHP](https://github.com/VenusianPHP): the framework, its sketches and the IOPools loop this module rides.
 * [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md): the spec the [`.okf/`](.okf/) bundle follows.
@@ -217,7 +250,7 @@ vendor/bin/pest
 ```
 
 ```console
-Tests:    39 passed (159 assertions)
+Tests:    62 passed (302 assertions)
 ```
 
 ## Contributing
