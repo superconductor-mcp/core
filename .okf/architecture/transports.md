@@ -1,11 +1,11 @@
 ---
 type: Architecture
 title: Transports
-description: How a semiconductor/* package plugs in: the server sketch through sketches.load, the client creator through mcp.clients.
+description: How a transport package (superconductor/stdio, superconductor/web planned) plugs in: the server sketch through sketches.load, the client creator through mcp.clients.
 resource: src/Fabricate/Core/Providers/SuperconductorMCPServiceProvider.php
 tags: [mcp, transport, provider]
 status: draft
-generated: { by: claude-fable/5.1, at: 2026-10-26T04:30:00Z }
+generated: { by: claude-sonnet-5-5/claude-code, at: 2026-10-28T23:00:00Z }
 sources:
   - id: provider
     resource: src/Fabricate/Core/Providers/SuperconductorMCPServiceProvider.php
@@ -17,7 +17,7 @@ sources:
 
 # This package names no transport
 
-`superconductor/mcp` ships no sketch and no connection. A transport is a separate `semiconductor/*` package (stdio today; sse and streamable-http are planned stops) that provides both ends.
+`superconductor/core` ships no sketch and no connection. A transport is a separate package that provides both ends: `superconductor/stdio` today, and `superconductor/web` (planned, built on venusian/serve) for HTTP.
 
 # Server end
 
@@ -28,7 +28,7 @@ A transport ships a sketch extending `Fabricate\Core\Runner\Sketches\StartMCPSer
 `ClientManager` is a `MultipleInstanceManager` with `type` as its driver key. A transport registers a creator for its type in its provider's `boot()`:
 
 ```php
-$this->app->make(ClientManager::class)->extend('stdio', function (FrameworkCore $app, array $config): MCPClient {
+$this->app->make(ClientManager::class)->extend('stdio', function (FrameworkCore $app, array $config): ClientContract {
     $loop = $app->make(Loop::class);
     $client = new MCPClient($config['name'], $loop);
 

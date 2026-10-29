@@ -5,7 +5,7 @@ description: 2025-06-18. A handler asks the user mid-call through the client, wa
 resource: src/Fabricate/Mechanism/Session/Elicitation.php
 tags: [mcp, elicitation, session, client, 2025-06-18]
 status: draft
-generated: { by: claude-opus/5.5, at: 2026-10-27T06:00:00Z }
+generated: { by: claude-sonnet-5-5/claude-code, at: 2026-10-28T23:00:00Z }
 sources:
   - id: service
     resource: src/Fabricate/Mechanism/Session/Elicitation.php
@@ -29,7 +29,7 @@ sources:
 
 1. Refuses (`ElicitationFailed`) when `available()` is false: the session negotiated less than 2025-06-18, the client's initialize did not declare `elicitation`, or no request is in flight. `available()` lets a handler choose a fallback instead of catching.
 2. Refuses a schema with a property outside the subset (below) before anything is sent.
-3. Sends `elicitation/create` with an id from the session's own ledger, through the same `$send` the request answers on: the pipe on stdio, the POST's event stream on HTTP. Parks the id in `SessionBag::$awaiting`.
+3. Sends `elicitation/create` with an id from the session's own ledger, through the same `$send` the request answers on: the pipe on stdio. Parks the id in `SessionBag::$awaiting`.
 4. Waits with `Loop::until()` in the request's fiber. The loop keeps turning, so other requests, pings and the answer itself still flow.
 5. Ends on the first of: the answer lands in `SessionBag::$answers` (a `ReceivedResponse` the transport handed to `Session::handle()`); the originating request is cancelled; `mcp.elicitation.timeout` seconds pass (default 600). The last two send `notifications/cancelled` for the elicitation id and throw.
 6. A JSON-RPC error answer throws. An `accept` whose content breaks the schema throws. `decline` and `cancel` are answers, returned as they are.

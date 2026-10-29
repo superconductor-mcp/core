@@ -1,5 +1,14 @@
 # Log
 
+## 2026-10-28 (0.11.0)
+
+* **Package renamed** `superconductor/mcp` to `superconductor/core`; the transport packages are `superconductor/stdio` and, planned, `superconductor/web` (built on venusian/serve). The 0.10 `semiconductor/*` names are retired.
+* **Entities**: `MCPMechanism` and `Contracts\Mechanism\Mechanism` became `Mechanism\MCPEntity` and `Contracts\Mechanism\MCPEntity` ([roles](architecture/roles.md)).
+* **Contracts**: `Contracts\Server\MCPServer` and `Contracts\Client\MCPClient` added. Code outside the two classes, and the container id the stdio sketch registers, name the contracts; `MCPServer` is abstract and implements its contract, `MCPClient` implements its own ([roles](architecture/roles.md)).
+* **Providers flattened**: `Server\ServerServiceProvider` and `Client\ClientServiceProvider` replace the `Providers/` folders ([transports](architecture/transports.md)).
+* **Versions**: root and split manifests `^0.11.0` / `0.11.x-dev`, `MCPClient::VERSION` `0.11.0`, PHP `~8.4.27||^8.5.12`; `venusian/framework ^0.11.0` joins require-dev because the code calls `config()` and `app()`. No wire or behaviour change; the protocol line is unchanged (2025-06-18, 2025-03-26, 2024-11-05).
+* Pest suite: 62 tests, 302 assertions.
+
 ## 2026-10-27 (2025-06-18)
 
 * **Protocol 2025-06-18 added**, both earlier versions kept. The server records the negotiated version on its bag ([messages](protocol/messages.md)).

@@ -2,8 +2,8 @@
 
 namespace Fabricate\NutsAndBolts\Messages\Logging;
 
+use Fabricate\Contracts\NutsAndBolts\LogLevel;
 use Fabricate\Contracts\NutsAndBolts\MCPError;
-use Fabricate\NutsAndBolts\LogLevel;
 use Fabricate\NutsAndBolts\Messages\Errors\InvalidParams;
 use Fabricate\NutsAndBolts\Messages\Errors\InvalidRequest;
 use Fabricate\NutsAndBolts\Messages\MCPRequest;

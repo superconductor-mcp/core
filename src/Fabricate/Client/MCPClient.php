@@ -3,15 +3,17 @@
 namespace Fabricate\Client;
 
 use Closure;
+use Fabricate\Contracts\Client\ClientStatus;
 use Fabricate\NutsAndBolts\Capabilities;
 use Fabricate\NutsAndBolts\Messages\Elicitation\ElicitAnswer;
 use Fabricate\NutsAndBolts\Messages\Elicitation\ElicitRequest;
 use Throwable;
 use Voyager\Workflows\Flow;
-use Fabricate\Mechanism\MCPMechanism;
+use Fabricate\Mechanism\MCPEntity;
 use Voyager\Contracts\IOPools\Loop;
 use Voyager\Contracts\IOPools\Promise;
 use Fabricate\Contracts\Client\Connection;
+use Fabricate\Contracts\Client\MCPClient as ClientContract;
 use Fabricate\Client\Workflows\ClientStartNode;
 use Fabricate\NutsAndBolts\Messages\MCPRequest;
 use Fabricate\NutsAndBolts\Messages\MCPResponse;
@@ -36,9 +38,9 @@ use Fabricate\NutsAndBolts\Messages\Resources\ListResourceTemplatesRequest;
 use Fabricate\NutsAndBolts\Messages\Resources\ListResourceTemplatesResponse;
 
 // one connection to one server, living inside the application's own event loop
-class MCPClient extends MCPMechanism
+class MCPClient extends MCPEntity implements ClientContract
 {
-    public const string VERSION = '0.10.0';
+    public const string VERSION = '0.11.0';
 
     /** each list kind the client caches: its request class, response class, and the response property holding the page */
     public const array LISTS = [

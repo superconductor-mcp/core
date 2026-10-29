@@ -1,6 +1,6 @@
 <?php
 
-use Fabricate\Client\ClientStatus;
+use Fabricate\Contracts\Client\ClientStatus;
 use Fabricate\Client\RequestFailed;
 use Fabricate\NutsAndBolts\Messages\Tools\CallToolResponse;
 use Fabricate\NutsAndBolts\Messages\Elicitation\ElicitAnswer;

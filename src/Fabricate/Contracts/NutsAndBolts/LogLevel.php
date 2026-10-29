@@ -1,6 +1,6 @@
 <?php
 
-namespace Fabricate\NutsAndBolts;
+namespace Fabricate\Contracts\NutsAndBolts;
 
 // the RFC 5424 syslog severities MCP logging uses, least to most severe
 enum LogLevel: string

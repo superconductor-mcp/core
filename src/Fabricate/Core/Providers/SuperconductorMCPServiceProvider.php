@@ -2,9 +2,11 @@
 
 namespace Fabricate\Core\Providers;
 
-use Fabricate\Client\Providers\ClientServiceProvider;
-use Fabricate\Server\Providers\ServerServiceProvider;
+use ReflectionException;
 use Voyager\NutsAndBolts\ServiceProvider;
+use Fabricate\Client\ClientServiceProvider;
+use Fabricate\Core\Commands\MakeServerCommand;
+use Fabricate\Server\ServerServiceProvider;
 
 class SuperconductorMCPServiceProvider extends ServiceProvider
 {
@@ -14,8 +16,13 @@ class SuperconductorMCPServiceProvider extends ServiceProvider
 
         $this->app->register(ServerServiceProvider::class);
         $this->app->register(ClientServiceProvider::class);
+
+        $this->commands([MakeServerCommand::class]);
     }
 
+    /**
+     * @throws ReflectionException
+     */
     public function boot(): void
     {
         $this->publishes([

@@ -5,7 +5,7 @@ description: ClientManager, MCPClient, ClientBag, the start node, the handshake,
 resource: src/Fabricate/Client
 tags: [mcp, client, manager, promises]
 status: draft
-generated: { by: claude-fable/5.1, at: 2026-10-26T15:30:00Z }
+generated: { by: claude-sonnet-5-5/claude-code, at: 2026-10-28T23:00:00Z }
 sources:
   - id: client
     resource: src/Fabricate/Client/MCPClient.php
@@ -55,4 +55,4 @@ A request for a method whose capability the server did not declare is rejected b
 
 # Ready is settled by the client, not read back from the promise
 
-`MCPClient` keeps its own flag for the ready promise. The loop's promise wrapper learns it is settled one queue flush after `resolve()`, so a failure landing in the very next frame (a Streamable HTTP server answering `404` to the listening GET right after the lists filled) would otherwise reject a fulfilled promise and throw. Any guard on `ready` reads the client's flag.
+`MCPClient` keeps its own flag for the ready promise. The loop's promise wrapper learns it is settled one queue flush after `resolve()`, so a failure landing in the very next frame (an HTTP server answering `404` to the listening GET right after the lists filled) would otherwise reject a fulfilled promise and throw. Any guard on `ready` reads the client's flag.

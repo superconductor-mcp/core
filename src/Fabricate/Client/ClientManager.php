@@ -3,6 +3,7 @@
 namespace Fabricate\Client;
 
 use Closure;
+use Fabricate\Contracts\Client\MCPClient;
 use InvalidArgumentException;
 use Voyager\Contracts\IOPools\Loop;
 use Voyager\Contracts\IOPools\IOPoolsException;

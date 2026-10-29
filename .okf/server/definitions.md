@@ -5,7 +5,7 @@ description: Tools, resources, templates, prompts, completers: the DTOs, the att
 resource: src/Fabricate/NutsAndBolts
 tags: [mcp, server, tools, resources, prompts]
 status: draft
-generated: { by: claude-fable/5.1, at: 2026-10-26T04:30:00Z }
+generated: { by: claude-sonnet-5-5/claude-code, at: 2026-10-28T23:00:00Z }
 sources:
   - id: tool
     resource: src/Fabricate/NutsAndBolts/ToolDefinition.php
@@ -33,7 +33,7 @@ A schema is built from primitives, each a `SchemaProperty` that renders itself a
 
 # Lists are computed per call
 
-`tools()`, `resources()`, `resourceTemplates()` and `prompts()` return the `$tools` etc. arrays by default; override them to decide per call (the dev app's concept server offers `press_start` until pressed, then `echo`). Each list request pages its result through `Paginator` with an opaque base64 offset cursor and `mcp.pagination.page_size`; a cursor the paginator did not make is `InvalidParams`.
+`tools()`, `resources()`, `resourceTemplates()` and `prompts()` return the `$tools` etc. arrays by default; override them to decide per call. Each list request pages its result through `Paginator` with an opaque base64 offset cursor and `mcp.pagination.page_size`; a cursor the paginator did not make is `InvalidParams`.
 
 # Progress and cancellation
 

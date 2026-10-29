@@ -1,6 +1,6 @@
 <?php
 
-namespace Fabricate\Client;
+namespace Fabricate\Contracts\Client;
 
 enum ClientStatus: string
 {

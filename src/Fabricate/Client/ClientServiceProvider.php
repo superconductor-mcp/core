@@ -1,8 +1,7 @@
 <?php
 
-namespace Fabricate\Client\Providers;
+namespace Fabricate\Client;
 
-use Fabricate\Client\ClientManager;
 use Voyager\Contracts\Core\FrameworkCore;
 use Voyager\NutsAndBolts\ServiceProvider;
 

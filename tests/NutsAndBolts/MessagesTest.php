@@ -1,6 +1,6 @@
 <?php
 
-use Fabricate\NutsAndBolts\LogLevel;
+use Fabricate\Contracts\NutsAndBolts\LogLevel;
 use Fabricate\NutsAndBolts\Messages\Ping\PingRequest;
 use Fabricate\NutsAndBolts\Messages\Ping\PingResponse;
 use Fabricate\NutsAndBolts\Messages\Tools\CallToolRequest;

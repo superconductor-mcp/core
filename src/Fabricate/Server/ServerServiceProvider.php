@@ -2,10 +2,8 @@
 
 declare(strict_types=1);
 
-namespace Fabricate\Server\Providers;
+namespace Fabricate\Server;
 
-use Fabricate\Server\DiscoverServers;
-use Fabricate\Server\ServerRepository;
 use InvalidArgumentException;
 use Voyager\Contracts\Core\FrameworkCore;
 use Voyager\NutsAndBolts\ServiceProvider;

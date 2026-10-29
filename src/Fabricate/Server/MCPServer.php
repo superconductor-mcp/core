@@ -2,24 +2,27 @@
 
 namespace Fabricate\Server;
 
-use Fabricate\Mechanism\MCPMechanism;
-use Fabricate\NutsAndBolts\LogLevel;
+use Fabricate\Mechanism\MCPEntity;
+use Fabricate\Contracts\NutsAndBolts\LogLevel;
 use Fabricate\NutsAndBolts\Messages\MCPNotification;
 use Fabricate\NutsAndBolts\Messages\Logging\LoggingMessageNotification;
+use Fabricate\Contracts\Server\MCPServer as ServerContract;
 
-abstract class MCPServer extends MCPMechanism
+abstract class MCPServer extends MCPEntity implements ServerContract
 {
     protected array $tools = [];
+
+    /** @var list<MCPNotification> notifications queued for the transport to send after the current message */
+    protected array $outbox = [];
+
+    /** @var list<\Fabricate\NutsAndBolts\PromptDefinition> */
+    protected array $prompts = [];
+
     /** @var list<\Fabricate\NutsAndBolts\ResourceDefinition> */
     protected array $resources = [];
 
     /** @var list<\Fabricate\NutsAndBolts\ResourceTemplateDefinition> */
     protected array $resource_templates = [];
-    /** @var list<\Fabricate\NutsAndBolts\PromptDefinition> */
-    protected array $prompts = [];
-
-    /** @var list<MCPNotification> notifications queued for the transport to send after the current message */
-    protected array $outbox = [];
 
     public function serverInfo(): array
     {

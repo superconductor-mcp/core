@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-superconductor/mcp is pre-1.0. No 0.x release receives security fixes or advisories; fixes land in the
+superconductor/core is pre-1.0. No 0.x release receives security fixes or advisories; fixes land in the
 next release line. Security support starts with 1.0.
 
 | Version | Security fixes |
@@ -14,7 +14,7 @@ next release line. Security support starts with 1.0.
 Please don't open a public issue for a security problem.
 
 Report it privately through GitHub: the **Report a vulnerability** button on the
-[superconductor-mcp/mcp](https://github.com/superconductor-mcp/mcp) repository's **Security** tab.
+[superconductor-mcp/core](https://github.com/superconductor-mcp/core) repository's **Security** tab.
 If that isn't available, email **info@projectsaturnstudios.com**.
 
 Include what you found, the affected version, the protocol version in play, the transport, and steps
@@ -23,7 +23,7 @@ is no response-time commitment.
 
 ## Security model
 
-superconductor/mcp speaks the Model Context Protocol on both sides. A **server** runs the tools, resources
+superconductor/core speaks the Model Context Protocol on both sides. A **server** runs the tools, resources
 and prompts an application chooses to expose, for whichever client the transport connects. A **client**
 runs the commands an application's `mcp.mcp_servers` list names, as child processes, and calls whatever
 those servers offer. Each side trusts the application that configured it and nothing on the wire.

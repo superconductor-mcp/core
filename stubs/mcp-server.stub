@@ -1,0 +1,32 @@
+<?php
+
+namespace {{ namespace }};
+
+use Fabricate\NutsAndBolts\Attributes\Server;
+use Fabricate\NutsAndBolts\Schema\StringProperty;
+use Fabricate\NutsAndBolts\Schema\TextProperty;
+use Fabricate\NutsAndBolts\ToolDefinition;
+use Fabricate\Server\MCPServer;
+
+#[Server('{{ server_name }}')]
+class {{ class }} extends MCPServer
+{
+    protected array $entity_info = ['name' => '{{ server_name }}', 'version' => '1.0.0'];
+
+    protected array $entity_capabilities = [
+        'tools' => ['listChanged' => false],
+    ];
+
+    public function tools(): array
+    {
+        return [
+            new ToolDefinition(
+                'echo',
+                'You get out what you put in',
+                ['input' => new StringProperty('What to send back')],
+                ['input'],
+                fn (string $input): TextProperty => new TextProperty($input),
+            ),
+        ];
+    }
+}

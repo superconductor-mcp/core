@@ -2,7 +2,7 @@
 
 namespace Fabricate\NutsAndBolts\Messages\Logging;
 
-use Fabricate\NutsAndBolts\LogLevel;
+use Fabricate\Contracts\NutsAndBolts\LogLevel;
 use Fabricate\NutsAndBolts\Messages\MCPNotification;
 
 // one log entry from a server that advertised the logging capability

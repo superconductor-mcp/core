@@ -1,13 +1,13 @@
 <div align="center" id="header">
 
-<h1>superconductor/mcp</h1>
+<h1>superconductor/core</h1>
 <h3>The Model Context Protocol as a VenusianPHP module: serve it, consume it, same event loop</h3>
 
-[![CI](https://img.shields.io/github/actions/workflow/status/superconductor-mcp/mcp/tests.yml?style=flat-square&label=CI)](https://github.com/superconductor-mcp/mcp/actions/workflows/tests.yml)
-[![Packagist](https://img.shields.io/packagist/v/superconductor/mcp?style=flat-square)](https://packagist.org/packages/superconductor/mcp)
-[![PHP](https://img.shields.io/packagist/dependency-v/superconductor/mcp/php?style=flat-square&label=PHP)](https://packagist.org/packages/superconductor/mcp)
+[![CI](https://img.shields.io/github/actions/workflow/status/superconductor-mcp/core/tests.yml?style=flat-square&label=CI)](https://github.com/superconductor-mcp/core/actions/workflows/tests.yml)
+[![Packagist](https://img.shields.io/packagist/v/superconductor/core?style=flat-square)](https://packagist.org/packages/superconductor/core)
+[![PHP](https://img.shields.io/packagist/dependency-v/superconductor/core/php?style=flat-square&label=PHP)](https://packagist.org/packages/superconductor/core)
 [![MCP](https://img.shields.io/badge/MCP-2025--06--18-5b4ee6?style=flat-square)](https://modelcontextprotocol.io/specification/2025-06-18)
-[![License](https://img.shields.io/github/license/superconductor-mcp/mcp?style=flat-square)](LICENSE)
+[![License](https://img.shields.io/github/license/superconductor-mcp/core?style=flat-square)](LICENSE)
 [![OKF](https://img.shields.io/badge/OKF-0.2-6f42c1?style=flat-square&label=knowledge%20bundle)](.okf/index.md)
 
 </div>
@@ -16,11 +16,11 @@ The Model Context Protocol is how an LLM harness talks to the tools, documents a
 
 A VenusianPHP application already has an event loop. Its sketches run on it, its worker pools run on it, its sockets and timers wake on it. <b>The only problem?</b> An MCP SDK brings its own loop and wants the application to wait on it.
 
-superconductor/mcp speaks MCP as a native citizen of that loop. A **server** is an `MCPServer` class that lists what it offers, run as a sketch by a transport package. A **client** is an `MCPClient` the application holds inside its own loop, one per connection, built from an `mcp_servers` list in the same shape Claude Desktop uses. Neither side owns a loop; both ride the one the application already has.
+superconductor/core speaks MCP as a native citizen of that loop. A **server** is an `MCPServer` class that lists what it offers, run as a sketch by a transport package. A **client** is an `MCPClient` the application holds inside its own loop, one per connection, built from an `mcp_servers` list in the same shape Claude Desktop uses. Neither side owns a loop; both ride the one the application already has.
 
 ## Basic usage
 
-Most ways you will interface with superconductor/mcp are in two parts -
+Most ways you will interface with superconductor/core are in two parts -
 
 **Serving.** A server is a class with a `#[Server]` name, its capabilities, and what it offers. Each tool, resource or prompt is a definition pointing at a class with `handle()`.
 
@@ -56,7 +56,7 @@ class EchoTool
 ```
 
 ```bash
-php rocket mcp:cli concept      # with semiconductor/stdio installed
+php rocket mcp:cli concept      # with superconductor/stdio installed
 ```
 
 **Consuming.** Name the servers in `config/mcp.php`, then take the manager out of the container. Every method that talks to a server returns an IOPools promise.
@@ -89,15 +89,15 @@ $clients->closeAll();                           // each server shut down in the 
 
 | | |
 |---|---|
-| PHP | 8.4 or newer. |
-| VenusianPHP | A 0.10 application: `venusian-voyager/console`, `contracts`, `io-pools`, `nuts-and-bolts` and `workflows`. |
-| A transport | One `semiconductor/*` package. Today that is [semiconductor/stdio](https://github.com/superconductor-mcp/stdio). |
+| PHP | 8.4.27 or newer in 8.4, or 8.5.12 or newer. |
+| VenusianPHP | A 0.11 application: `venusian-voyager/console`, `contracts`, `io-pools`, `nuts-and-bolts` and `workflows`. The code calls `config()` and `app()`, which the application's framework provides; the test suite gets them from `venusian/framework` in `require-dev`. |
+| A transport | One transport package. Today that is [superconductor/stdio](https://github.com/superconductor-mcp/stdio); superconductor/web (HTTP, built on venusian/serve) is planned. |
 | Protocol | 2025-06-18, 2025-03-26 and 2024-11-05. Later stops on the line are added one at a time and never drop an earlier one. Batches are received from sessions below 2025-06-18, never sent. |
 
 ## Installation
 
 ```bash
-composer require superconductor/mcp semiconductor/stdio
+composer require superconductor/core superconductor/stdio
 ```
 
 The service provider is discovered. It merges `config/mcp.php`, discovers servers under `App\Mcp\Servers`, binds the server repository as `mcp.servers` and the client manager as `mcp.clients`. Publish the config to change any of it:
@@ -106,7 +106,7 @@ The service provider is discovered. It merges `config/mcp.php`, discovers server
 php computer vendor:publish --tag=mcp-config
 ```
 
-Verify with the transport's own commands; with semiconductor/stdio:
+Verify with the transport's own commands; with superconductor/stdio:
 
 ```console
 $ php rocket list | grep mcp:
@@ -125,7 +125,7 @@ $ printf '%s\n' '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protoc
 | `servers.default_discovery_namespace` | `App\Mcp\Servers` | Where `#[Server]` classes are found. Must sit under the application namespace. |
 | `servers.supported_mcp_versions` | `['2025-06-18', '2025-03-26', '2024-11-05']` | What a server will speak and what a client proposes (the latest). |
 | `elicitation.timeout` | `600` | Seconds a handler waits for the user's answer before it cancels the question. |
-| `client.stream_reconnects` | `5` | Streamable HTTP only: how many times in a row the listening stream is reopened after the server drops it without sending anything. |
+| `client.stream_reconnects` | `5` | For the HTTP transport (superconductor/web, planned): how many times in a row the listening stream is reopened after the server drops it without sending anything. Nothing in this package reads it yet. |
 | `mcp_servers` | `[]` | The servers this application connects to, keyed by name: `type`, `command`, `args`, `env`, `cwd`, `disabled`. An entry with a `command` and no `type` is `stdio`, so a Claude Desktop entry pastes in as it is. |
 | `client.connect_timeout` | `20` | Seconds a client may spend between opening its connection and finishing the handshake. |
 | `pagination.page_size` | `50` | Entries per page of `tools/list`, `resources/list`, `resources/templates/list` and `prompts/list`. |
@@ -180,7 +180,7 @@ A tool that runs long takes a `ProgressReporter` in its constructor and calls `r
 
 ## Consuming
 
-`ClientManager` (`mcp.clients`) is a `MultipleInstanceManager`: one `MCPClient` per `mcp_servers` entry, built by the transport the entry's `type` names.
+`ClientManager` (`mcp.clients`) is a `MultipleInstanceManager`: one client per `mcp_servers` entry, built by the transport the entry's `type` names. Application code types against `Fabricate\Contracts\Client\MCPClient`; the manager hands back that contract, and the concrete `Fabricate\Client\MCPClient` is what a transport constructs.
 
 | Call | Gives |
 |---|---|
@@ -217,7 +217,7 @@ app(ClientManager::class)->onElicit(function (ElicitRequest $request, MCPClient 
 
 | Package | Gives |
 |---|---|
-| [semiconductor/stdio](https://github.com/superconductor-mcp/stdio) | The stdio transport: `rocket mcp:cli <server>` to serve, `StdioConnection` to consume. |
+| [superconductor/stdio](https://github.com/superconductor-mcp/stdio) | The stdio transport: `rocket mcp:cli <server>` to serve, `StdioConnection` to consume. |
 
 ## AI-assisted development
 
@@ -240,11 +240,11 @@ Point your agent at the repo and it has the same context the maintainer has. Poi
 
 ## Running the test suite
 
-The suite is Pest v4 and needs no server: the client runs on a fake connection that records what it sends and takes replies by hand, procedures run against a bench `MCPServer`, the decoder against lines.
+The suite is Pest v4 and needs no server: the client runs on a fake connection that records what it sends and takes replies by hand, procedures run against a bench `MCPServer`, the decoder against lines. `venusian/framework` is in `require-dev` because the code calls `config()` and `app()`.
 
 ```bash
-git clone https://github.com/superconductor-mcp/mcp.git
-cd mcp
+git clone https://github.com/superconductor-mcp/core.git
+cd core
 composer install
 vendor/bin/pest
 ```

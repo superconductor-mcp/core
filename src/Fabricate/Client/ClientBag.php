@@ -2,6 +2,7 @@
 
 namespace Fabricate\Client;
 
+use Fabricate\Contracts\Client\ClientStatus;
 use Fabricate\NutsAndBolts\RequestIds;
 use Voyager\Workflows\SharedBag;
 use Voyager\Contracts\IOPools\Promise;

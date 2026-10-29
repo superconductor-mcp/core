@@ -1,11 +1,11 @@
 ---
 type: Mechanism
 title: Session
-description: One client's session on the server side, transport-neutral: the lifecycle states, the id ledgers, dispatch sync or in a fiber, respond, cancel, outbox flush. stdio and HTTP both run it.
+description: One client's session on the server side, transport-neutral: the lifecycle states, the id ledgers, dispatch sync or in a fiber, respond, cancel, outbox flush. superconductor/stdio runs it; the planned superconductor/web will too.
 resource: src/Fabricate/Mechanism/Session/Session.php
 tags: [mcp, session, lifecycle, server]
 status: draft
-generated: { by: claude-fable/5.1, at: 2026-10-26T18:00:00Z }
+generated: { by: claude-sonnet-5-5/claude-code, at: 2026-10-28T23:00:00Z }
 sources:
   - id: session
     resource: src/Fabricate/Mechanism/Session/Session.php
@@ -54,4 +54,4 @@ After the lifecycle check, `Capabilities::requiredBy()` names the capability a m
 
 # What a transport adds
 
-stdio: `STDIOBag` with `stop_waiting`, `ping_timer`, pings with `own_ids`; `STDIOLoopStartNode` handles `PingDue`, `PipeClosed`, `HandshakeTimedOut` and the ping replies, delegates the rest. HTTP (semiconductor/sse): `HttpSession` routes a POST's replies to that POST and the server's own lines to the listening stream ring; no pings, an idle timeout instead.
+stdio: `STDIOBag` with `stop_waiting`, `ping_timer`, pings with `own_ids`; `STDIOLoopStartNode` handles `PingDue`, `PipeClosed`, `HandshakeTimedOut` and the ping replies, delegates the rest. The HTTP transport, superconductor/web, is planned and will drive the same `Session`.

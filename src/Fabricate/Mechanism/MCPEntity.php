@@ -2,9 +2,9 @@
 
 namespace Fabricate\Mechanism;
 
-use Fabricate\Contracts\Mechanism\Mechanism as MechanismContract;
+use Fabricate\Contracts\Mechanism\MCPEntity as EntityContract;
 
-abstract class MCPMechanism implements MechanismContract
+abstract class MCPEntity implements EntityContract
 {
     protected array $entity_info = [];
     protected array $entity_capabilities = [];

@@ -2,10 +2,10 @@
 okf_version: "0.2"
 ---
 
-# superconductor/mcp
+# superconductor/core
 
-* [Roles](architecture/roles.md) - A server is a sketch run by a transport; a client is an in-process component in the application's loop. What they share and what they never do.
-* [Transports](architecture/transports.md) - How a `semiconductor/*` package plugs in: the server sketch through `sketches.load`, the client creator through `mcp.clients`.
+* [Roles](architecture/roles.md) - A server is a sketch run by a transport; a client is an in-process component in the application's loop. Their contracts, what they share and what they never do.
+* [Transports](architecture/transports.md) - How a transport package (superconductor/stdio, superconductor/web planned) plugs in: the server sketch through `sketches.load`, the client creator through `mcp.clients`.
 
 # Protocol
 
@@ -21,7 +21,7 @@ okf_version: "0.2"
 # Mechanism
 
 * [Procedures](mechanism/procedures.md) - The router, the procedure per method, the `ASYNC` flag and the fiber it buys.
-* [Session](mechanism/session.md) - One client's session, transport-neutral: lifecycle states, id ledgers, capability gate, dispatch, respond, cancel, outbox, requests to the client. stdio and HTTP both run it.
+* [Session](mechanism/session.md) - One client's session, transport-neutral: lifecycle states, id ledgers, capability gate, dispatch, respond, cancel, outbox, requests to the client. superconductor/stdio runs it; the planned superconductor/web will too.
 * [Elicitation](mechanism/elicitation.md) - 2025-06-18: a handler asks the user mid-call through the client; the schema subset, its checks, timeout and cancellation.
 
 # Client

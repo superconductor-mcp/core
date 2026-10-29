@@ -1,6 +1,6 @@
 <?php
 
-use Fabricate\NutsAndBolts\LogLevel;
+use Fabricate\Contracts\NutsAndBolts\LogLevel;
 use Fabricate\NutsAndBolts\MCPServerBag;
 use Fabricate\Tests\Fixtures\BenchServer;
 use Fabricate\NutsAndBolts\Messages\Tools\ToolListChangedNotification;

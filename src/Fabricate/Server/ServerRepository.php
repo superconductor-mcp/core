@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Fabricate\Server;
 
+use Fabricate\Contracts\Server\MCPServer;
 use Fabricate\NutsAndBolts\Attributes\Server as ServerAttribute;
 use InvalidArgumentException;
 use ReflectionClass;
