@@ -22,6 +22,12 @@ sources:
   - id: make-tests
     resource: tests/Core/MakeServerCommandTest.php
     title: make:mcp-server generates a server discovery finds
+  - id: icon
+    resource: src/Fabricate/NutsAndBolts/Icon.php
+    title: Icon
+  - id: icon-tests
+    resource: tests/NutsAndBolts/Shapes20251125Test.php
+    title: Icons are sent as declared and checked when built
 ---
 
 # A definition names an action
@@ -30,11 +36,23 @@ Each DTO's `action` is a `Closure` or a class name. A class is built through the
 
 | Definition | Attribute | `handle()` arguments | returns |
 |---|---|---|---|
-| `ToolDefinition(name, description, properties, required, action)` | `#[ToolCall]` | the call's arguments by name; `required` checked, unknown names refused, PHP's own required parameters checked, all as `InvalidParams` | one `SchemaPrimitive` or a list; anything else or a throw → `isError` result |
+| `ToolDefinition(name, description, properties, required, action)` | `#[ToolCall]` | the call's arguments by name; `required` checked, unknown names refused, PHP's own required parameters checked, all as `InvalidParams`, or from 2025-11-25 as a `CallToolResponse` with `isError` and the problem as text | one `SchemaPrimitive` or a list; anything else or a throw → `isError` result |
 | `ResourceDefinition(uri, name, description, mime_type, action)` | `#[ResourceRead]` | none | `ResourceContents` |
 | `ResourceTemplateDefinition(uri_template, name, description, mime_type, action, completers)` | `#[ResourceRead]` | the template's `{variables}`, matched per path segment and url-decoded | `ResourceContents` |
 | `PromptDefinition(name, description, arguments, action)`, `PromptArgument(name, description, required, completer)` | `#[PromptGet]` | the prompt's arguments by name, always strings | a list of `PromptMessage` |
 | a `completer` | `#[Completes]` | `handle(string $value)` | `CompletionResult` |
+
+# Icons
+
+2025-11-25 (SEP-973). Each of the four definitions takes `icons`, a list of `NutsAndBolts\Icon` (`src`, `mime_type`, `sizes`, `theme`) or of spec-shaped arrays, which `Icon::list()` reads when the definition is built; an empty `src`, a `theme` other than `light` or `dark`, or a `sizes` that is not a list of strings throws `InvalidArgumentException` naming the icon. They go out under `icons` exactly as declared, ungated by version like `title`, and the key is left out with none.[^icon-tests] A server's identity (`$entity_info`, read through `entityInfo()`) takes the same `icons`, checked the same way, plus string `description` and `websiteUrl`.
+
+# Tool names
+
+2025-11-25 (SEP-986). `ToolDefinition` throws `InvalidArgumentException` unless the name matches `/\A[A-Za-z0-9_.-]{1,128}\z/`; the message says the allowed characters and length. It is checked when the definition is built, whatever version a session negotiates, so a server cannot list a name a 2025-11-25 client would reject.[^icon-tests]
+
+# Bad arguments
+
+2025-11-25 (SEP-1303). `CallToolProcedure` checks the call's arguments before running the action: a missing required argument, an unknown one, a PHP parameter left unfilled, or a value that does not fit its declared property (`SchemaProperty::problem()`: type, length, range, format, enum; `text: 5` is `Invalid argument text: must be a string.` rather than coerced to `"5"`). On a session that negotiated 2025-11-25 or later the problem comes back as a `CallToolResponse` with `isError: true` and the message as one text item, so the model can read it and call again; on an older session it stays `InvalidParams`. An unknown or unavailable tool is a protocol error (`ToolCallError`) at every version, because there is nothing to correct and call again.[^icon-tests]
 
 # Schema primitives
 
@@ -51,3 +69,4 @@ A schema is built from primitives, each a `SchemaProperty` that renders itself a
 # Progress and cancellation
 
 The transport registers a `ProgressReporter` for the request in the container before the action is built. `report($progress, $total)` sends `notifications/progress` for a request that carried a `progressToken`, only when the value increased, at most once per `mcp.progress.min_interval` except the report that reaches the total; `finish()` after the response stops it. A `notifications/cancelled` for a request still in flight suppresses its response.
+[^icon-tests]: Icons are sent as declared and checked when built

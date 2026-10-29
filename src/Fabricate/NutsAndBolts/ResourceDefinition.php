@@ -18,8 +18,11 @@ class ResourceDefinition implements Arrayable
         public ?string $title = null,
         public ?Annotations $annotations = null,
         public array $meta = [],
+        /** @var list<Icon> 2025-11-25: images a client may show; an array entry is read as {src, mimeType?, sizes?, theme?} */
+        public array $icons = [],
     ) {
         Meta::check($meta);
+        $this->icons = Icon::list($icons);
     }
 
     public function toArray(): array
@@ -29,6 +32,7 @@ class ResourceDefinition implements Arrayable
             'name' => $this->name,
             'title' => $this->title,
             'description' => $this->description,
+            'icons' => Icon::render($this->icons),
             'mimeType' => $this->mime_type,
             'annotations' => $this->annotations?->toArray(),
         ], fn (mixed $value): bool => ! is_null($value)), $this->meta);

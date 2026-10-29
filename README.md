@@ -6,7 +6,7 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/superconductor-mcp/core/tests.yml?style=flat-square&label=CI)](https://github.com/superconductor-mcp/core/actions/workflows/tests.yml)
 [![Packagist](https://img.shields.io/packagist/v/superconductor/core?style=flat-square)](https://packagist.org/packages/superconductor/core)
 [![PHP](https://img.shields.io/packagist/dependency-v/superconductor/core/php?style=flat-square&label=PHP)](https://packagist.org/packages/superconductor/core)
-[![MCP](https://img.shields.io/badge/MCP-2025--06--18-5b4ee6?style=flat-square)](https://modelcontextprotocol.io/specification/2025-06-18)
+[![MCP](https://img.shields.io/badge/MCP-2025--11--25-5b4ee6?style=flat-square)](https://modelcontextprotocol.io/specification/2025-11-25)
 [![License](https://img.shields.io/github/license/superconductor-mcp/core?style=flat-square)](LICENSE)
 [![OKF](https://img.shields.io/badge/OKF-0.2-6f42c1?style=flat-square&label=knowledge%20bundle)](.okf/index.md)
 
@@ -92,7 +92,7 @@ $clients->closeAll();                           // each server shut down in the 
 | PHP | 8.4.27 or newer in 8.4, or 8.5.12 or newer. |
 | VenusianPHP | A 0.11 application: `venusian-voyager/console`, `contracts`, `io-pools`, `nuts-and-bolts` and `workflows`. The code calls `config()` and `app()`, which the application's framework provides; the test suite gets them from `venusian/framework` in `require-dev`. |
 | A transport | One transport package. Today that is [superconductor/stdio](https://github.com/superconductor-mcp/stdio); superconductor/web (HTTP, built on venusian/serve) is planned. |
-| Protocol | 2025-06-18, 2025-03-26 and 2024-11-05. Later stops on the line are added one at a time and never drop an earlier one. Batches are received from sessions below 2025-06-18, never sent. |
+| Protocol | 2025-11-25, 2025-06-18, 2025-03-26 and 2024-11-05. Later stops on the line are added one at a time and never drop an earlier one. Batches are received from sessions below 2025-06-18, never sent. |
 
 ## Installation
 
@@ -123,7 +123,7 @@ $ printf '%s\n' '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protoc
 | Key | Default | What it does |
 |---|---|---|
 | `servers.default_discovery_namespace` | `App\Mcp\Servers` | Where `#[Server]` classes are found. Must sit under the application namespace. |
-| `servers.supported_mcp_versions` | `['2025-06-18', '2025-03-26', '2024-11-05']` | What a server will speak and what a client proposes (the latest). |
+| `servers.supported_mcp_versions` | `['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05']` | What a server will speak and what a client proposes (the latest). |
 | `elicitation.timeout` | `600` | Seconds a handler waits for the user's answer before it cancels the question. |
 | `mcp_servers` | `[]` | The servers this application connects to, keyed by name: `type`, `command`, `args`, `env`, `cwd`, `disabled`. An entry with a `command` and no `type` is `stdio`, so a Claude Desktop entry pastes in as it is. |
 | `client.connect_timeout` | `20` | Seconds a client may spend between opening its connection and finishing the handshake. |
@@ -162,6 +162,12 @@ $this->log(LogLevel::Info, 'document.flipped', ['visible' => false]);   // Fabri
 
 Every definition takes a `title` for display, and resources and content items take `Annotations` (audience, priority, last modified).
 
+Tools, resources, resource templates, prompts and a server's identity take `icons` (2025-11-25): `new Icon($src, $mime_type, $sizes, $theme)` or the spec's array `['src' => ..., 'mimeType' => ..., 'sizes' => ['48x48'], 'theme' => 'dark']`. They go out as declared, to every client; a definition with a missing `src` or a theme other than `light` or `dark` fails when it is built. A server's `$entity_info` may also carry `description` and `websiteUrl`.
+
+A call with a missing or unknown argument is answered with a tool result flagged `isError` and the problem as text from 2025-11-25 (so the model can correct itself), and with a `-32602` error before; an unknown tool is a `-32602` protocol error at every version.
+
+A tool name is 1 to 128 characters of `A-Z a-z 0-9 _ - .` (2025-11-25); `ToolDefinition` throws `InvalidArgumentException` for any other name, at every protocol version.
+
 A tool that returns data declares an `output_schema` and returns `StructuredContent`; the client gets `structuredContent` plus the same JSON as text. Nothing checks the data against the schema; the tool keeps that promise.
 
 ```php
@@ -182,6 +188,17 @@ $answer = $this->elicitation->ask('How should the part be made?', new ObjectSche
 
 $answer->accepted() ? $answer->content['material'] : $answer->action->value;   // accept, decline or cancel
 ```
+
+For what must not pass through the client (credentials, payment, a third-party sign-in), send the user to a URL instead (2025-11-25; the client must have declared URL mode). Accept means they agreed to open it; queue the completion when your own page sees them finish:
+
+```php
+$answer = $this->elicitation->askUrl('Connect your calendar.', "https://mcp.example.com/connect?e={$id}", $id);
+
+// later, once https://mcp.example.com/connect has verified the same user and finished
+$server->notify(new ElicitationCompleteNotification($id));
+```
+
+A handler that can't go on until the user does that throws `new UrlElicitationRequired([['message' => 'Connect your calendar.', 'url' => $url, 'elicitationId' => $id]])`; the request is answered with error `-32042` listing it, and the client may retry once it completes.
 
 A tool that runs long takes a `ProgressReporter` in its constructor and calls `report($progress, $total)`; the notifications go out while it runs. Tool calls, resource reads, prompt gets and completion run in a loop fiber, so a tool that waits on the loop (`$loop->await(…)`, `$loop->until(…)`) keeps the server answering pings and honouring `notifications/cancelled` meanwhile.
 
@@ -215,9 +232,17 @@ To answer elicitation, set a handler before the client connects; it shows the qu
 
 ```php
 app(ClientManager::class)->onElicit(function (ElicitRequest $request, MCPClient $client): ElicitAnswer {
-    // $request->message, $request->requested_schema: a flat object of string, number, integer, boolean or enum fields
-    return ElicitAnswer::accept(['material' => 'pla', 'thickness' => 2.0]);   // or ElicitAnswer::decline(), ::cancel()
+    // $request->message, $request->requested_schema: a flat object of string, number, integer, boolean, single-select and multi-select fields, each possibly with a default
+    return ElicitAnswer::accept(['material' => 'pla', 'thickness' => 2.0, 'finishes' => ['matte', 'sanded']]);   // a multi-select answers with a list   // or ElicitAnswer::decline(), ::cancel()
 });
+```
+
+URL mode (2025-11-25) has its own handler, which must show the full URL and its host and open it outside the client only if the user agrees; accept carries no content. A completion handler hears when the server says one finished:
+
+```php
+app(ClientManager::class)
+    ->onElicitUrl(fn (ElicitRequest $request, MCPClient $client): ElicitAnswer => askUserToOpen($request->url) ? ElicitAnswer::accept([]) : ElicitAnswer::decline())
+    ->onElicitationComplete(fn (string $elicitation_id, MCPClient $client) => retryWaitingCalls($elicitation_id));
 ```
 
 ## Packages you might use with this one
@@ -240,7 +265,7 @@ Point your agent at the repo and it has the same context the maintainer has. Poi
 
 ## Resources
 
-* [MCP specification 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18), [2025-03-26](https://modelcontextprotocol.io/specification/2025-03-26) and [2024-11-05](https://modelcontextprotocol.io/specification/2024-11-05): the wire formats this version serves and consumes.
+* [MCP specification 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25), [2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18), [2025-03-26](https://modelcontextprotocol.io/specification/2025-03-26) and [2024-11-05](https://modelcontextprotocol.io/specification/2024-11-05): the wire formats this version serves and consumes.
 * [JSON-RPC 2.0](https://www.jsonrpc.org/specification): the envelope every message rides in.
 * [VenusianPHP](https://github.com/VenusianPHP): the framework, its sketches and the IOPools loop this module rides.
 * [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md): the spec the [`.okf/`](.okf/) bundle follows.

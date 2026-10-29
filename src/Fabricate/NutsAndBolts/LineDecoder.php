@@ -95,6 +95,7 @@ class LineDecoder
                     'notifications/resources/updated' => ResourceUpdatedNotification::generate($decoded['params'] ?? null) ?? static::handleUnknownMessage($line),
                     'notifications/message' => LoggingMessageNotification::generate($decoded['params'] ?? null) ?? static::handleUnknownMessage($line),
                     'notifications/progress' => ProgressNotification::generate($decoded['params'] ?? null) ?? static::handleUnknownMessage($line),
+                    'notifications/elicitation/complete' => Messages\Elicitation\ElicitationCompleteNotification::generate($decoded['params'] ?? null) ?? static::handleUnknownMessage($line),
                     default => static::handleUnknownMessage($line),
                 };
             }

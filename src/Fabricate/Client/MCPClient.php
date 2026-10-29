@@ -62,8 +62,11 @@ class MCPClient extends MCPEntity implements ClientContract
     // settled by this client; the promise's own flag only turns once the engine has flushed its callbacks, a frame later
     private bool $ready_settled = false;
 
-    /** @var Closure(ElicitRequest, MCPClient): ElicitAnswer|null answers elicitation/create; set before open() so initialize declares it */
-    private ?Closure $elicit = null;
+    /** @var array<'form'|'url', Closure(ElicitRequest, MCPClient): ElicitAnswer> answer elicitation/create per mode; set before open() so initialize declares them */
+    private array $elicit = [];
+
+    /** @var Closure(string, MCPClient): void|null told when the server says a URL elicitation is done */
+    private ?Closure $elicitation_complete = null;
 
     public function __construct(
         protected readonly string $name,
@@ -77,15 +80,49 @@ class MCPClient extends MCPEntity implements ClientContract
     // 2025-06-18: the server may ask the user something mid-call; the handler shows the question and returns the answer
     public function onElicit(Closure $handler): static
     {
-        $this->elicit = $handler;
-        $this->entity_capabilities['elicitation'] = [];
+        $this->elicit['form'] = $handler;
+
+        return $this->declareElicitation();
+    }
+
+    /**
+     * 2025-11-25: the server may send the user to a URL. The handler shows the full URL and its host, asks
+     * the user, and opens it outside the client only if they agree: accept means they agreed, not that
+     * they finished. Never fetch the URL first or open it unasked.
+     */
+    public function onElicitUrl(Closure $handler): static
+    {
+        $this->elicit['url'] = $handler;
+
+        return $this->declareElicitation();
+    }
+
+    // 2025-11-25: the server says the out-of-band interaction a URL elicitation started is done; ids this client never saw are ignored
+    public function onElicitationComplete(Closure $handler): static
+    {
+        $this->elicitation_complete = $handler;
 
         return $this;
     }
 
-    public function elicitHandler(): ?Closure
+    public function elicitHandler(string $mode = 'form'): ?Closure
     {
-        return $this->elicit;
+        return $this->elicit[$mode] ?? null;
+    }
+
+    public function elicitationCompleteHandler(): ?Closure
+    {
+        return $this->elicitation_complete;
+    }
+
+    // form alone keeps the empty object every version reads as form; with url, each mode is named
+    private function declareElicitation(): static
+    {
+        $this->entity_capabilities['elicitation'] = array_keys($this->elicit) === ['form']
+            ? []
+            : array_map(fn () => [], $this->elicit);
+
+        return $this;
     }
 
     public function attach(Connection $connection): static

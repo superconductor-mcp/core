@@ -5,13 +5,13 @@ namespace Fabricate\NutsAndBolts\Messages\Elicitation;
 // the user's answer to an elicitation; content only when they accepted
 final readonly class ElicitAnswer
 {
-    /** @param array<string, string|int|float|bool>|null $content */
+    /** @param array<string, string|int|float|bool|list<string>>|null $content */
     public function __construct(
         public ElicitAction $action,
         public ?array $content = null,
     ) {}
 
-    /** @param array<string, string|int|float|bool> $content */
+    /** @param array<string, string|int|float|bool|list<string>> $content */
     public static function accept(array $content): self
     {
         return new self(ElicitAction::Accept, $content);

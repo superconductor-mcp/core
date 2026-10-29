@@ -23,6 +23,27 @@ final class Capabilities
         };
     }
 
+    /**
+     * The elicitation modes a client declared: none without the capability, form only before 2025-11-25,
+     * and from it whichever of form and url it names, an empty object still meaning form.
+     *
+     * @return list<'form'|'url'>
+     */
+    public static function elicitationModes(array $client_capabilities, ?string $protocol_version): array
+    {
+        if (! self::declares($client_capabilities, ['elicitation'])) {
+            return [];
+        }
+
+        $declared = $client_capabilities['elicitation'];
+
+        if (($protocol_version ?? '') < '2025-11-25' || ! is_array($declared) || array_intersect(array_keys($declared), ['form', 'url']) === []) {
+            return ['form'];
+        }
+
+        return array_values(array_intersect(['form', 'url'], array_keys($declared)));
+    }
+
     // a path is declared when every step exists; the last step may be a flag that must be true
     public static function declares(array $capabilities, array $path): bool
     {

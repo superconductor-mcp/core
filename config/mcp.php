@@ -3,7 +3,7 @@
 return [
     'servers' => [
         'default_discovery_namespace' => "App\\Mcp\\Servers",
-        'supported_mcp_versions' => ['2025-06-18', '2025-03-26', '2024-11-05']
+        'supported_mcp_versions' => ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05']
     ],
     // servers this application connects to as a client, keyed by name; 'type' picks the transport
     // and defaults to 'stdio' when the entry has a 'command', so a Claude Desktop entry pastes in as-is

@@ -21,10 +21,11 @@ All extend `JsonRpcError`, itself an `MCPResponse` and an `MCPError`.
 | `ParseError` | -32700 | the line is not JSON; id is null |
 | `InvalidRequest` | -32600 | not a request object, wrong `jsonrpc`, bad id, a repeated id, a request the lifecycle state refuses, a response with both result and error |
 | `MethodNotFound` | -32601 | an unrouted or unknown method; the client answers an unsupported server request with it |
-| `InvalidParams` | -32602 | `generate()` found a wrong shape; a missing or unknown tool argument; a bad cursor |
+| `InvalidParams` | -32602 | `generate()` found a wrong shape; a missing or unknown tool argument on a session below 2025-11-25 (from 2025-11-25 it is a tool result with `isError`); a bad cursor |
 | `ToolCallError` | -32602 | `tools/call` named a tool not offered (the 2024-11-05 code) |
 | `ResourceNotFound` | -32002 | `resources/read` or `subscribe` named no resource or template |
 | `InternalError` | -32603 | an action missing or throwing where the result cannot carry it, a fiber failing |
+| `UrlElicitationRequiredError` | -32042 | 2025-11-25: a handler threw `UrlElicitationRequired` and the client takes URL elicitation; `data.elicitations` lists the URL elicitations to finish before a retry ([elicitation](../mechanism/elicitation.md)) |
 | `UnknownNotification` | -32601 | an unknown notification; `replies()` is false, it is never sent |
 
 # Reuse, do not add

@@ -5,6 +5,7 @@ namespace Fabricate\Mechanism\Rpc\Procedures\Prompts;
 use Closure;
 use ReflectionClass;
 use Throwable;
+use Fabricate\Mechanism\Session\UrlElicitationRequired;
 use Fabricate\NutsAndBolts\MCPServerBag;
 use Fabricate\NutsAndBolts\PromptMessage;
 use Fabricate\NutsAndBolts\PromptDefinition;
@@ -51,6 +52,8 @@ class GetPromptProcedure extends Procedure
 
         try {
             $result = $action(...$request->arguments);
+        } catch (UrlElicitationRequired $e) {
+            return $e->toError($request->id, $bag);
         } catch (Throwable $e) {
             return new InternalError($request->id, $e->getMessage());
         }

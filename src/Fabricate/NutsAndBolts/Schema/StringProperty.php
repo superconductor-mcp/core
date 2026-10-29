@@ -16,6 +16,8 @@ class StringProperty implements SchemaProperty
         public ?int $min_length = null,
         public ?int $max_length = null,
         public ?string $format = null,
+        // 2025-11-25: what a form shows prefilled; it must fit this property's own limits
+        public ?string $default = null,
     ) {
         if (($min_length ?? 0) < 0 || ($max_length ?? 0) < 0) {
             throw new InvalidArgumentException('min_length and max_length must not be negative.');
@@ -23,6 +25,10 @@ class StringProperty implements SchemaProperty
 
         if (! is_null($format) && ! in_array($format, self::FORMATS, true)) {
             throw new InvalidArgumentException('format must be one of: '.implode(', ', self::FORMATS).'.');
+        }
+
+        if (! is_null($default) && ! is_null($problem = $this->problem($default))) {
+            throw new InvalidArgumentException("default {$problem}");
         }
     }
 
@@ -35,6 +41,7 @@ class StringProperty implements SchemaProperty
             'minLength' => $this->min_length,
             'maxLength' => $this->max_length,
             'format' => $this->format,
+            'default' => $this->default,
         ], fn (mixed $value): bool => ! is_null($value));
     }
 

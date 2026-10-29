@@ -1,5 +1,18 @@
 # Log
 
+## 2026-10-29 (2025-11-25)
+
+* **Argument types (SEP-1303)**: `tools/call` checks each argument with a declared property against it (`SchemaProperty::problem()`), so a wrong type, length, range, format or enum value is a bad argument like a missing one, instead of PHP coercing it ([definitions](server/definitions.md)).
+
+## 2026-10-28 (2025-11-25)
+
+* **URL elicitation (SEP-1036)**: `Elicitation::askUrl()`, `ElicitationCompleteNotification` (sent only to a session whose client declared URL mode), `UrlElicitationRequired` answered as `-32042` from `tools/call`, `resources/read` and `prompts/get`; `Capabilities::elicitationModes()` reads `form`/`url`, an empty object still meaning form; the client's `onElicitUrl()` and `onElicitationComplete()` ([elicitation](mechanism/elicitation.md), [errors](protocol/errors.md)).
+* **Protocol 2025-11-25 added**, the three earlier versions kept: `supported_mcp_versions` lists it first, so negotiation picks it and `MCPClient` proposes it ([messages](protocol/messages.md), [config](reference/config.md)).
+* **Icons (SEP-973)**: `NutsAndBolts\Icon` and an `icons` argument on `ToolDefinition`, `ResourceDefinition`, `ResourceTemplateDefinition` and `PromptDefinition`, and in a server's `$entity_info` beside `description` and `websiteUrl`. Sent as declared, checked when built ([definitions](server/definitions.md)).
+* **Tool names (SEP-986)**: `ToolDefinition` throws unless the name is 1 to 128 characters of `A-Z a-z 0-9 _ - .`, at every protocol version ([definitions](server/definitions.md)).
+* **Elicitation forms (SEP-1330, SEP-1034)**: `default` on string, number, integer, boolean and every enum form, checked against the field's own constraints; titled single-select (`oneOf`); untitled and titled multi-select (`ArrayProperty` with `min_items`, `max_items`, `default`); legacy `enumNames` kept. An answer's content may hold a list of strings, and the answer check verifies each value and the item count ([elicitation](mechanism/elicitation.md)).
+* **Bad tool arguments (SEP-1303)**: from 2025-11-25 a missing or unknown argument is a `CallToolResponse` with `isError` and the problem as text; older sessions keep `InvalidParams`, and an unknown tool stays a protocol error ([definitions](server/definitions.md)).
+
 ## 2026-10-28 (0.11.0)
 
 * **Package renamed** `superconductor/mcp` to `superconductor/core`; the transport packages are `superconductor/stdio` and, planned, `superconductor/web` (built on venusian/serve). The 0.10 `semiconductor/*` names are retired.

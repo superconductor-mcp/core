@@ -61,6 +61,16 @@ Known notifications: `initialized`, `cancelled` (client to server); `tools/list_
 | Capability gate | `Capabilities::requiredBy($method, $version)` and `declares()`. Server: a method whose capability it did not declare answers `MethodNotFound`. Client: a request for a capability the server did not declare is rejected before it is sent. `completion/complete` needs `completions` only from 2025-03-26, which introduced it. |
 | Initialize encoding | client capabilities go out as objects at every depth (`"elicitation": {}`), as server capabilities already did. Go and TypeScript servers refuse an array there. |
 
+# 2025-11-25 shapes
+
+| Shape | Where |
+|---|---|
+| Protocol version | `supported_mcp_versions` gains `2025-11-25` as its first entry: a client that proposes it gets it, an unknown proposal is answered with it, and `MCPClient` proposes it. Every `>= '2025-06-18'` check holds for it unchanged. |
+| Icons | `NutsAndBolts\Icon` and an `icons` list on the four definitions and in the server identity, with the identity's `description` and `websiteUrl`; see [definitions](../server/definitions.md). |
+| Tool names | `ToolDefinition` refuses a name outside `[A-Za-z0-9_.-]{1,128}`; see [definitions](../server/definitions.md). |
+| Elicitation forms | `default` on every flat field; titled single-select (`oneOf`), untitled and titled multi-select (`ArrayProperty` over `EnumProperty`), legacy `enumNames` kept; see [elicitation](../mechanism/elicitation.md). |
+| Tool argument errors | `CallToolProcedure`: from 2025-11-25 a bad or missing argument is a `CallToolResponse` with `isError`, not `InvalidParams`; an unknown tool stays a protocol error. See [definitions](../server/definitions.md). |
+
 # Nothing downstream re-checks
 
 Procedures and nodes receive typed messages and trust their fields. A new message class gets its `generate()` checks at the point the line is read, never later.

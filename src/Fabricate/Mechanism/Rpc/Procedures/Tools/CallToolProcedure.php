@@ -8,6 +8,7 @@ use ReflectionFunction;
 use ReflectionFunctionAbstract;
 use ReflectionMethod;
 use Throwable;
+use Fabricate\Mechanism\Session\UrlElicitationRequired;
 use Fabricate\NutsAndBolts\MCPServerBag;
 use Fabricate\NutsAndBolts\ToolDefinition;
 use Fabricate\NutsAndBolts\Attributes\ToolCall;
@@ -44,11 +45,16 @@ class CallToolProcedure extends Procedure
 
         // 3. the request's arguments are injected by name into the tool's parameters
         if (! is_null($problem = $this->checkArguments($definition, $action, $request->arguments))) {
-            return new InvalidParams($request->id, $problem);
+            // 2025-11-25 (SEP-1303): the model can read and correct a bad argument when it comes back as a tool result
+            return ($bag->protocol_version ?? '') >= '2025-11-25'
+                ? new CallToolResponse($request->id, [new TextProperty($problem)], true)
+                : new InvalidParams($request->id, $problem);
         }
 
         try {
             $result = $action(...$request->arguments);
+        } catch (UrlElicitationRequired $e) {
+            return $e->toError($request->id, $bag);
         } catch (Throwable $e) {
             // the tool ran and failed: report it in the result, not as a JSON-RPC error
             return new CallToolResponse($request->id, [new TextProperty($e->getMessage())], true);
@@ -129,6 +135,13 @@ class CallToolProcedure extends Procedure
         foreach ($parameters as $parameter) {
             if (! $parameter->isOptional() && ! array_key_exists($parameter->getName(), $arguments)) {
                 return "Missing required argument: {$parameter->getName()}";
+            }
+        }
+
+        // a declared property's type: PHP would coerce the value (5 into a string parameter) or throw a TypeError
+        foreach ($arguments as $name => $value) {
+            if (isset($definition->properties[$name]) && ! is_null($problem = $definition->properties[$name]->problem($value))) {
+                return "Invalid argument {$name}: {$problem}";
             }
         }
 

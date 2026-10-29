@@ -35,9 +35,14 @@ it('answers initialize with the version the client proposed when it is supported
         ->and($bag->client_info['name'])->toBe('c');
 });
 
+it('echoes 2025-11-25 to a client proposing it, and each older version it still speaks', function (string $version) {
+    [$router, $bag] = bench();
+    expect($router->dispatch(new InitializeRequest(0, $version, [], ['name' => 'c', 'version' => '1']), $bag)->protocol_version)->toBe($version);
+})->with(['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05']);
+
 it('offers its latest version to a client proposing one it does not speak', function () {
     [$router, $bag] = bench();
-    expect($router->dispatch(new InitializeRequest(0, '2030-01-01', [], ['name' => 'c', 'version' => '1']), $bag)->protocol_version)->toBe('2025-06-18');
+    expect($router->dispatch(new InitializeRequest(0, '2030-01-01', [], ['name' => 'c', 'version' => '1']), $bag)->protocol_version)->toBe('2025-11-25');
 });
 
 it('answers ping and refuses an unrouted method', function () {
@@ -84,6 +89,37 @@ it('refuses an unknown tool and a missing required argument as protocol errors',
 
     $missing = $router->dispatch(new CallToolRequest(2, 'echo'), $bag);
     expect($missing)->toBeInstanceOf(InvalidParams::class)->and($missing->error['data'])->toContain('text');
+});
+
+// 2025-11-25 (SEP-1303)
+it('reports bad tool arguments in the result from 2025-11-25, and as InvalidParams before', function (string $version, bool $in_result) {
+    [$router, $bag] = bench();
+    $bag->protocol_version = $version;
+
+    $problems = [1 => 'Missing required argument: text', 2 => 'Unknown argument: extra', 4 => 'Invalid argument text: must be a string.'];
+
+    foreach ([new CallToolRequest(1, 'echo'), new CallToolRequest(2, 'echo', ['text' => 'x', 'extra' => 1]), new CallToolRequest(4, 'echo', ['text' => 5])] as $request) {
+        $response = $router->dispatch($request, $bag);
+
+        if ($in_result) {
+            expect($response)->toBeInstanceOf(CallToolResponse::class)
+                ->and($response->is_error)->toBeTrue()
+                ->and($response->content[0]->value)->toBe($problems[$request->id]);
+        } else {
+            expect($response)->toBeInstanceOf(InvalidParams::class);
+        }
+    }
+
+    // an unknown tool is still a protocol error, whatever the version
+    expect($router->dispatch(new CallToolRequest(3, 'nope'), $bag))->toBeInstanceOf(ToolCallError::class);
+})->with([['2025-11-25', true], ['2025-06-18', false], ['2025-03-26', false], ['2024-11-05', false]]);
+
+it('still runs a tool whose arguments are fine on 2025-11-25', function () {
+    [$router, $bag] = bench();
+    $bag->protocol_version = '2025-11-25';
+    $response = $router->dispatch(new CallToolRequest(1, 'echo', ['text' => 'hi']), $bag);
+
+    expect($response)->toBeInstanceOf(CallToolResponse::class)->and($response->is_error)->toBeFalse();
 });
 
 it('knows which procedures run in a fiber', function () {

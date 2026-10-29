@@ -18,8 +18,11 @@ class PromptDefinition implements Arrayable
         public Closure|string|null $action = null,
         public ?string $title = null,
         public array $meta = [],
+        /** @var list<Icon> 2025-11-25: images a client may show; an array entry is read as {src, mimeType?, sizes?, theme?} */
+        public array $icons = [],
     ) {
         Meta::check($meta);
+        $this->icons = Icon::list($icons);
     }
 
     public function argument(string $name): ?PromptArgument
@@ -39,6 +42,7 @@ class PromptDefinition implements Arrayable
             'name' => $this->name,
             'title' => $this->title,
             'description' => $this->description,
+            'icons' => Icon::render($this->icons),
             // a prompt with no arguments leaves the key out
             'arguments' => $this->arguments === []
                 ? null

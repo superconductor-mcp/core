@@ -47,7 +47,7 @@ Nothing in the handshake runs inside a promise callback: a throwing `then` callb
 
 # Capabilities and elicitation
 
-A request for a method whose capability the server did not declare is rejected before it leaves (`RequestFailed` "did not declare ..."), from the handshake on. `onElicit()` adds the client's one optional capability; see [elicitation](../mechanism/elicitation.md).
+A request for a method whose capability the server did not declare is rejected before it leaves (`RequestFailed` "did not declare ..."), from the handshake on. `onElicit()` and `onElicitUrl()` add the client's one optional capability, naming the modes it has; see [elicitation](../mechanism/elicitation.md).
 
 # Ending
 

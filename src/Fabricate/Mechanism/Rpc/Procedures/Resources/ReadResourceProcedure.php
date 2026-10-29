@@ -5,6 +5,7 @@ namespace Fabricate\Mechanism\Rpc\Procedures\Resources;
 use Closure;
 use ReflectionClass;
 use Throwable;
+use Fabricate\Mechanism\Session\UrlElicitationRequired;
 use Fabricate\NutsAndBolts\MCPServerBag;
 use Fabricate\NutsAndBolts\ResourceDefinition;
 use Fabricate\NutsAndBolts\ResourceTemplateDefinition;
@@ -40,6 +41,8 @@ class ReadResourceProcedure extends Procedure
         try {
             // template variables arrive by name, the way tool arguments do; a fixed resource gets none
             $result = $action(...$variables);
+        } catch (UrlElicitationRequired $e) {
+            return $e->toError($request->id, $bag);
         } catch (Throwable $e) {
             return new InternalError($request->id, $e->getMessage());
         }

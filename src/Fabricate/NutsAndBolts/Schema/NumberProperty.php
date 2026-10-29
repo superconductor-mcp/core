@@ -14,9 +14,15 @@ class NumberProperty implements SchemaProperty
         public ?string $title = null,
         public int|float|null $minimum = null,
         public int|float|null $maximum = null,
+        // 2025-11-25: what a form shows prefilled; it must fit this property's own bounds
+        public int|float|null $default = null,
     ) {
         if (! is_null($minimum) && ! is_null($maximum) && $minimum > $maximum) {
             throw new InvalidArgumentException('minimum must not be above maximum.');
+        }
+
+        if (! is_null($default) && ! is_null($problem = $this->problem($default))) {
+            throw new InvalidArgumentException("default {$problem}");
         }
     }
 
@@ -28,6 +34,7 @@ class NumberProperty implements SchemaProperty
             'description' => $this->description,
             'minimum' => $this->minimum,
             'maximum' => $this->maximum,
+            'default' => $this->default,
         ], fn (mixed $value): bool => ! is_null($value));
     }
 

@@ -18,8 +18,12 @@ use Fabricate\NutsAndBolts\Messages\Ping\PingRequest;
 use Fabricate\NutsAndBolts\Messages\Ping\PingResponse;
 use Fabricate\NutsAndBolts\Messages\Errors\MethodNotFound;
 use Fabricate\NutsAndBolts\Messages\Errors\InternalError;
+use Fabricate\NutsAndBolts\Messages\Errors\InvalidParams;
 use Fabricate\NutsAndBolts\Messages\Elicitation\ElicitRequest;
 use Fabricate\NutsAndBolts\Messages\Elicitation\ElicitResponse;
+use Fabricate\NutsAndBolts\Messages\Elicitation\ElicitAnswer;
+use Fabricate\NutsAndBolts\Messages\Elicitation\ElicitAction;
+use Fabricate\NutsAndBolts\Messages\Elicitation\ElicitationCompleteNotification;
 use Fabricate\NutsAndBolts\Messages\Errors\InvalidRequest;
 use Fabricate\NutsAndBolts\Messages\Responses\ReceivedResponse;
 use Fabricate\NutsAndBolts\Messages\Initialize\InitializeResponse;
@@ -143,18 +147,34 @@ class ClientStartNode extends Node
 
         $this->connection->send(match (true) {
             $request instanceof PingRequest => (new PingResponse($request->id))->toJson(),
-            $request instanceof ElicitRequest && ! is_null($this->client->elicitHandler()) => $this->elicit($request),
+            $request instanceof ElicitRequest => $this->elicit($request),
             default => (new MethodNotFound($request->id, $request->method))->toJson(),
         });
     }
 
-    // the application's handler shows the question; its answer is checked against the schema before it goes back
+    // the application's handler for the request's mode shows it; a form answer is checked against the schema before it goes back
     protected function elicit(ElicitRequest $request): string
     {
+        $handler = $this->client->elicitHandler($request->mode);
+
+        if (is_null($this->client->elicitHandler('form')) && is_null($this->client->elicitHandler('url'))) {
+            return (new MethodNotFound($request->id, $request->method))->toJson();
+        }
+
+        if (is_null($handler)) {
+            // elicitation is declared, but not this mode: the server broke the negotiation
+            return (new InvalidParams($request->id, "This client does not support {$request->mode} elicitation."))->toJson();
+        }
+
         try {
-            $answer = ($this->client->elicitHandler())($request, $this->client);
+            $answer = $handler($request, $this->client);
         } catch (Throwable $e) {
             return (new InternalError($request->id, "the elicitation handler failed: {$e->getMessage()}"))->toJson();
+        }
+
+        if ($request->mode === 'url') {
+            // the user only agreed to open the URL: nothing comes back with an accept
+            return (new ElicitResponse($request->id, $answer->accepted() ? new ElicitAnswer(ElicitAction::Accept) : $answer))->toJson();
         }
 
         if ($answer->accepted() && ! is_null($problem = $request->requested_schema->problem($answer->content))) {
@@ -178,6 +198,8 @@ class ClientStartNode extends Node
                 'mcp.client '.$this->client->name().' '.($notification->logger ?? 'server'),
                 is_array($notification->data) ? $notification->data : ['data' => $notification->data],
             ),
+            $notification instanceof ElicitationCompleteNotification && ! is_null($this->client->elicitationCompleteHandler())
+                => ($this->client->elicitationCompleteHandler())($notification->elicitation_id, $this->client),
             // resources/updated and progress are logged by LogIncomingMessage above; nothing more to do for them yet
             default => null,
         };

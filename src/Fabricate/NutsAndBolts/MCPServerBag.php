@@ -7,6 +7,7 @@ use Fabricate\Contracts\Server\MCPServer;
 use Fabricate\Contracts\NutsAndBolts\MCPNotification;
 use Fabricate\NutsAndBolts\Messages\Resources\ResourceUpdatedNotification;
 use Fabricate\NutsAndBolts\Messages\Logging\LoggingMessageNotification;
+use Fabricate\NutsAndBolts\Messages\Elicitation\ElicitationCompleteNotification;
 use Voyager\Workflows\SharedBag;
 
 class MCPServerBag extends SharedBag
@@ -32,6 +33,8 @@ class MCPServerBag extends SharedBag
         return match (true) {
             $notification instanceof ResourceUpdatedNotification => isset($this->subscriptions[$notification->uri]),
             $notification instanceof LoggingMessageNotification => $notification->level->atLeast($this->logLevel()),
+            // only a client that can take URL elicitations started one
+            $notification instanceof ElicitationCompleteNotification => in_array('url', Capabilities::elicitationModes($this->client_capabilities ?? [], $this->protocol_version), true),
             default => true,
         };
     }

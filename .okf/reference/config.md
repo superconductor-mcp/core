@@ -15,7 +15,7 @@ sources:
 | Key | Default | Read by |
 |---|---|---|
 | `servers.default_discovery_namespace` | `App\Mcp\Servers` | `ServerServiceProvider`, which maps it to a path under the application namespace and registers each `#[Server]` class; `make:mcp-server`, which writes new servers there |
-| `servers.supported_mcp_versions` | `['2025-06-18', '2025-03-26', '2024-11-05']` | `InitializeProcedure` (echo the client's version when supported, else offer the latest); `MCPClient` (propose the latest, refuse an answer outside the list) |
+| `servers.supported_mcp_versions` | `['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05']` | `InitializeProcedure` (echo the client's version when supported, else offer the latest); `MCPClient` (propose the latest, refuse an answer outside the list) |
 | `mcp_servers` | `[]` | `ClientManager`: name → `type`, `command`, `args`, `env`, `cwd`, `disabled` |
 | `client.connect_timeout` | `20` | `MCPClient::open()` deadline |
 | `pagination.page_size` | `50` | the four list procedures |

@@ -129,13 +129,29 @@ class ClientManager extends MultipleInstanceManager
     }
 
     // a resolved client is opened at once, unless its entry is disabled
-    /** @var Closure(ElicitRequest, MCPClient): ElicitAnswer|null */
-    protected ?Closure $elicit = null;
+    /** @var array{form?: Closure, url?: Closure, complete?: Closure} handed to every client this manager builds from here on */
+    protected array $elicit = [];
 
-    // every client this manager builds from here on answers elicitation/create with this handler
+    // form elicitation/create
     public function onElicit(Closure $handler): static
     {
-        $this->elicit = $handler;
+        $this->elicit['form'] = $handler;
+
+        return $this;
+    }
+
+    // 2025-11-25: URL elicitation/create
+    public function onElicitUrl(Closure $handler): static
+    {
+        $this->elicit['url'] = $handler;
+
+        return $this;
+    }
+
+    // 2025-11-25: notifications/elicitation/complete
+    public function onElicitationComplete(Closure $handler): static
+    {
+        $this->elicit['complete'] = $handler;
 
         return $this;
     }
@@ -144,8 +160,12 @@ class ClientManager extends MultipleInstanceManager
     {
         $client = parent::resolve($name);
 
-        if (! is_null($this->elicit)) {
-            $client->onElicit($this->elicit);
+        foreach ($this->elicit as $kind => $handler) {
+            match ($kind) {
+                'form' => $client->onElicit($handler),
+                'url' => $client->onElicitUrl($handler),
+                'complete' => $client->onElicitationComplete($handler),
+            };
         }
 
         if ($this->getInstanceConfig($name)['disabled'] ?? false) {

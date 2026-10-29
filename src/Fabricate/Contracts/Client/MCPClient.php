@@ -30,10 +30,18 @@ interface MCPClient extends MCPEntity
     // a deliberate end: nothing waiting gets an answer
     public function close(): void;
 
-    // 2025-06-18: answers elicitation/create; set before open() so initialize declares it
+    // 2025-06-18: answers form elicitation/create; set before open() so initialize declares it
     public function onElicit(Closure $handler): static;
 
-    public function elicitHandler(): ?Closure;
+    // 2025-11-25: answers URL elicitation/create; set before open() so initialize declares it
+    public function onElicitUrl(Closure $handler): static;
+
+    // 2025-11-25: told the elicitationId of each notifications/elicitation/complete
+    public function onElicitationComplete(Closure $handler): static;
+
+    public function elicitHandler(string $mode = 'form'): ?Closure;
+
+    public function elicitationCompleteHandler(): ?Closure;
 
     // what the handshake negotiated
     public function serverInfo(): array;
