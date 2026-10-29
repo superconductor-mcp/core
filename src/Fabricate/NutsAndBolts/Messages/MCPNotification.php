@@ -2,7 +2,9 @@
 
 namespace Fabricate\NutsAndBolts\Messages;
 
-abstract readonly class MCPNotification extends RoutedMCPMessage
+use Fabricate\Contracts\NutsAndBolts\MCPNotification as NotificationContract;
+
+abstract readonly class MCPNotification extends RoutedMCPMessage implements NotificationContract
 {
     public function __construct(
         string $method,

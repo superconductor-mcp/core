@@ -9,7 +9,8 @@
         }
     ],
     "require": {
-        "php": "~8.4.27||^8.5.12"
+        "php": "~8.4.27||^8.5.12",
+        "venusian-voyager/contracts": "^0.11.0"
     },
     "minimum-stability": "dev",
     "autoload": {

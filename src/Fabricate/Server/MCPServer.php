@@ -4,7 +4,7 @@ namespace Fabricate\Server;
 
 use Fabricate\Mechanism\MCPEntity;
 use Fabricate\Contracts\NutsAndBolts\LogLevel;
-use Fabricate\NutsAndBolts\Messages\MCPNotification;
+use Fabricate\Contracts\NutsAndBolts\MCPNotification;
 use Fabricate\NutsAndBolts\Messages\Logging\LoggingMessageNotification;
 use Fabricate\Contracts\Server\MCPServer as ServerContract;
 

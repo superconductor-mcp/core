@@ -4,7 +4,7 @@ namespace Fabricate\Contracts\Server;
 
 use Fabricate\Contracts\Mechanism\MCPEntity;
 use Fabricate\Contracts\NutsAndBolts\LogLevel;
-use Fabricate\NutsAndBolts\Messages\MCPNotification;
+use Fabricate\Contracts\NutsAndBolts\MCPNotification;
 
 interface MCPServer extends MCPEntity
 {

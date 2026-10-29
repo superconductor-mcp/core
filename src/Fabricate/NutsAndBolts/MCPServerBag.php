@@ -4,7 +4,7 @@ namespace Fabricate\NutsAndBolts;
 
 use Fabricate\Contracts\NutsAndBolts\LogLevel;
 use Fabricate\Contracts\Server\MCPServer;
-use Fabricate\NutsAndBolts\Messages\MCPNotification;
+use Fabricate\Contracts\NutsAndBolts\MCPNotification;
 use Fabricate\NutsAndBolts\Messages\Resources\ResourceUpdatedNotification;
 use Fabricate\NutsAndBolts\Messages\Logging\LoggingMessageNotification;
 use Voyager\Workflows\SharedBag;

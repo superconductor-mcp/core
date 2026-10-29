@@ -5,7 +5,7 @@ description: Tools, resources, templates, prompts, completers: the DTOs, the att
 resource: src/Fabricate/NutsAndBolts
 tags: [mcp, server, tools, resources, prompts]
 status: draft
-generated: { by: claude-sonnet-5-5/claude-code, at: 2026-10-28T23:00:00Z }
+generated: { by: claude-sonnet-5-5/claude-code, at: 2026-10-29T00:00:00Z }
 sources:
   - id: tool
     resource: src/Fabricate/NutsAndBolts/ToolDefinition.php
@@ -13,6 +13,15 @@ sources:
   - id: calltool
     resource: src/Fabricate/Mechanism/Rpc/Procedures/Tools/CallToolProcedure.php
     title: CallToolProcedure
+  - id: make-command
+    resource: src/Fabricate/Core/Commands/MakeServerCommand.php
+    title: MakeServerCommand
+  - id: make-stub
+    resource: stubs/mcp-server.stub
+    title: The server stub
+  - id: make-tests
+    resource: tests/Core/MakeServerCommandTest.php
+    title: make:mcp-server generates a server discovery finds
 ---
 
 # A definition names an action
@@ -34,6 +43,10 @@ A schema is built from primitives, each a `SchemaProperty` that renders itself a
 # Lists are computed per call
 
 `tools()`, `resources()`, `resourceTemplates()` and `prompts()` return the `$tools` etc. arrays by default; override them to decide per call. Each list request pages its result through `Paginator` with an opaque base64 offset cursor and `mcp.pagination.page_size`; a cursor the paginator did not make is `InvalidParams`.
+
+# Generating a server
+
+`php computer make:mcp-server <Name>` is a framework `GeneratorCommand`: it writes `<Name>.php` under `mcp.servers.default_discovery_namespace` (`App\Mcp\Servers` by default, so `app/Mcp/Servers/`), refuses to overwrite one that exists unless `--force`, and names the server the kebab-cased class name, as `ServerRepository::nameFor()` does. The stub declares `#[Server]`, extends `MCPServer`, sets `entity_info` and a `tools` capability, and offers one `echo` tool whose action is a closure. `stubs/mcp-server.stub` in the application overrides the package's. The core provider binds the command in the container, as Computer resolves commands through it. The test generates into a temporary application and checks that `DiscoverServers` finds the class and the tool runs.
 
 # Progress and cancellation
 

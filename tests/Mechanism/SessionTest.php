@@ -143,6 +143,28 @@ it('refuses a method whose capability the server did not declare, and returns st
     expect($result['structuredContent'])->toBe(['mm' => 12.5])->and($result['content'][0]['text'])->toBe('{"mm":12.5}');
 });
 
+it('sends a notification that implements only the contract, from notify() through the flush to the wire', function () {
+    [$session, , $feed, $take] = session();
+
+    $notification = new class implements \Fabricate\Contracts\NutsAndBolts\MCPNotification {
+        public string $method = 'notifications/custom';
+
+        public function toJson(): string
+        {
+            return json_encode(['jsonrpc' => '2.0', 'method' => $this->method, 'params' => ['n' => 1]]);
+        }
+    };
+
+    $session->bag->server_configuration->notify($notification);
+
+    expect($session->bag->wants($notification))->toBeTrue();
+
+    $feed(['id' => 9, 'method' => 'ping']);
+
+    expect(array_values(array_filter($take(), fn (array $m): bool => ($m['method'] ?? null) === 'notifications/custom')))
+        ->toBe([['jsonrpc' => '2.0', 'method' => 'notifications/custom', 'params' => ['n' => 1]]]);
+});
+
 it('knows whether the session takes batches', function () {
     expect(session(version: '2025-03-26')[0]->bag->takesBatches())->toBeTrue()
         ->and(session()[0]->bag->takesBatches())->toBeFalse();

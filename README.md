@@ -125,7 +125,6 @@ $ printf '%s\n' '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protoc
 | `servers.default_discovery_namespace` | `App\Mcp\Servers` | Where `#[Server]` classes are found. Must sit under the application namespace. |
 | `servers.supported_mcp_versions` | `['2025-06-18', '2025-03-26', '2024-11-05']` | What a server will speak and what a client proposes (the latest). |
 | `elicitation.timeout` | `600` | Seconds a handler waits for the user's answer before it cancels the question. |
-| `client.stream_reconnects` | `5` | For the HTTP transport (superconductor/web, planned): how many times in a row the listening stream is reopened after the server drops it without sending anything. Nothing in this package reads it yet. |
 | `mcp_servers` | `[]` | The servers this application connects to, keyed by name: `type`, `command`, `args`, `env`, `cwd`, `disabled`. An entry with a `command` and no `type` is `stdio`, so a Claude Desktop entry pastes in as it is. |
 | `client.connect_timeout` | `20` | Seconds a client may spend between opening its connection and finishing the handshake. |
 | `pagination.page_size` | `50` | Entries per page of `tools/list`, `resources/list`, `resources/templates/list` and `prompts/list`. |
@@ -134,6 +133,14 @@ $ printf '%s\n' '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protoc
 | `completion.rate_limit` | `10` per `1` s | `completion/complete` calls a session may make per window. |
 
 ## Serving
+
+Generate a server to start from:
+
+```bash
+php computer make:mcp-server WeatherStation      # app/Mcp/Servers/WeatherStation.php, served as `weather-station`
+```
+
+It is written under `servers.default_discovery_namespace`, refuses to overwrite a server unless you pass `--force`, and comes with one `echo` tool. Put your own `stubs/mcp-server.stub` in the application to change what it writes.
 
 Everything a server offers is a definition. A definition's `action` is a closure or a class carrying the matching attribute and a public `handle()`; the request's arguments are injected by name.
 
@@ -150,7 +157,7 @@ Override `tools()`, `resources()`, `resourceTemplates()` or `prompts()` to compu
 ```php
 $this->notify(new ToolListChangedNotification());       // sent only if tools.listChanged is advertised
 $this->notify(new ResourceUpdatedNotification($uri));   // reaches only sessions subscribed to $uri
-$this->log(LogLevel::Info, 'document.flipped', ['visible' => false]);   // filtered by each session's level
+$this->log(LogLevel::Info, 'document.flipped', ['visible' => false]);   // Fabricate\Contracts\NutsAndBolts\LogLevel; filtered by each session's level
 ```
 
 Every definition takes a `title` for display, and resources and content items take `Annotations` (audience, priority, last modified).
@@ -194,7 +201,7 @@ A tool that runs long takes a `ProgressReporter` in its constructor and calls `r
 
 | Call | Gives |
 |---|---|
-| `status()` | `NotConnected`, `Connecting`, `Connected`, `Error` or `Disabled`. `lastError()` says why for `Error`. |
+| `status()` | A `Fabricate\Contracts\Client\ClientStatus`: `NotConnected`, `Connecting`, `Connected`, `Error` or `Disabled`. `lastError()` says why for `Error`. |
 | `ready()` | A promise resolving with the client once the handshake is done and every list the server advertises is cached; rejected with `RequestFailed` when connecting failed. |
 | `serverInfo()`, `serverCapabilities()`, `protocolVersion()` | What the handshake negotiated. |
 | `tools()`, `resources()`, `resourceTemplates()`, `prompts()` | The caches, every page, refilled when the server sends a `list_changed`. |
@@ -250,7 +257,7 @@ vendor/bin/pest
 ```
 
 ```console
-Tests:    62 passed (302 assertions)
+Tests:    68 passed (327 assertions)
 ```
 
 ## Contributing

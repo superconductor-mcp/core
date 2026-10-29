@@ -7,7 +7,11 @@
 * **Contracts**: `Contracts\Server\MCPServer` and `Contracts\Client\MCPClient` added. Code outside the two classes, and the container id the stdio sketch registers, name the contracts; `MCPServer` is abstract and implements its contract, `MCPClient` implements its own ([roles](architecture/roles.md)).
 * **Providers flattened**: `Server\ServerServiceProvider` and `Client\ClientServiceProvider` replace the `Providers/` folders ([transports](architecture/transports.md)).
 * **Versions**: root and split manifests `^0.11.0` / `0.11.x-dev`, `MCPClient::VERSION` `0.11.0`, PHP `~8.4.27||^8.5.12`; `venusian/framework ^0.11.0` joins require-dev because the code calls `config()` and `app()`. No wire or behaviour change; the protocol line is unchanged (2025-06-18, 2025-03-26, 2024-11-05).
-* Pest suite: 62 tests, 302 assertions.
+* **Contracts name only Contracts and Voyager types**: `ClientStatus` moved to `Contracts\Client\ClientStatus` and `LogLevel` to `Contracts\NutsAndBolts\LogLevel`. `Contracts\Client\MCPClient` lost `receive()`, `connectionClosed()`, `fill()`, `filled()`, `handshakeDone()` and `fail()` (the start node, the test connection and stdio's `StdioConnection` hold the concrete client) and gained `listResources()`, `listResourceTemplates()`, `readResource()`, `getPrompt()`, `serverCapabilities()`, `protocolVersion()` and `resourceTemplates()`. The `Contracts` split requires `venusian-voyager/contracts ^0.11.0`. `Contracts\NutsAndBolts\MCPNotification` (an `RPCMessage` with a `method` property and `toJson()`) is new, and `MCPServerBag::wants()` and the session flush take it, so a contract-only notification is sent; `NutsAndBolts\Messages\MCPNotification` implements it, and `Contracts\Server\MCPServer::notify()` and the server's `notify()` and `advertises()` take it, so no `Contracts` file imports a `Fabricate\NutsAndBolts`, `Client`, `Server` or `Mechanism` class ([roles](architecture/roles.md)).
+* **`make:mcp-server`**: writes a server stub under the discovery namespace; `stubs/mcp-server.stub`, `MakeServerCommand`, bound by the core provider ([definitions](server/definitions.md), [config](reference/config.md)).
+* **Removed** the empty `Core\Commands\MakeClientCommand`: clients are spawned by `ClientManager` from `mcp_servers`, so no `make:mcp-client` is planned.
+* **Removed** `client.stream_reconnects` from `config/mcp.php` ([config](reference/config.md)): it belonged to an HTTP client that is not planned; superconductor/web serves, it does not consume.
+* Pest suite: 68 tests, 327 assertions.
 
 ## 2026-10-27 (2025-06-18)
 

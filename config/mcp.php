@@ -11,8 +11,6 @@ return [
     'client' => [
         // seconds a client may spend between opening its connection and finishing the handshake
         'connect_timeout' => 20,
-        // Streamable HTTP: how many times in a row the listening GET stream is reopened after the server drops it without sending anything
-        'stream_reconnects' => 5,
     ],
     'pagination' => [
         // how many entries one page of tools/list, resources/list or resources/templates/list holds

@@ -17,6 +17,8 @@ class SuperconductorMCPServiceProvider extends ServiceProvider
         $this->app->register(ServerServiceProvider::class);
         $this->app->register(ClientServiceProvider::class);
 
+        // Computer resolves commands through the container, so the command is bound before it is listed.
+        $this->app->registerSingleton(MakeServerCommand::class, fn ($app) => new MakeServerCommand($app['files']));
         $this->commands([MakeServerCommand::class]);
     }
 
