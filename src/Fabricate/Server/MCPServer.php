@@ -69,6 +69,7 @@ class MCPServer extends Entity implements Server
         }
 
         $this->subscriptions = [];
+        $this->stopTimeouts();
         unset($this->sessions[$this->session_id]);
         $this->sessions = null;
     }

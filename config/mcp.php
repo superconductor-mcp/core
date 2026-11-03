@@ -35,6 +35,10 @@ return [
         'discovery_namespace' => 'App\\Mcp\\Resources',
     ],
 
+    // Seconds a request a server or client sends waits for its response before it is cancelled; a configuration's
+    // $request_timeout overrides it. subscriptions/listen, which stays open until cancelled, never times out.
+    'request_timeout' => 60,
+
     // Seconds a 2026-07-28 requestState stays valid for the retry it was issued for.
     'request_state' => [
         'ttl' => 300,

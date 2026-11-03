@@ -39,6 +39,9 @@ abstract class EntityConfiguration implements ConfigurationContract
 
     protected array $supported_protocol_versions = ['2026-07-28'];
 
+    /** Seconds a request this entity sends waits for its response; null takes mcp.request_timeout. */
+    protected ?float $request_timeout = null;
+
     public function __construct(
         protected CapabilitiesFactory $capabilities_factory
     ) {}
@@ -91,6 +94,14 @@ abstract class EntityConfiguration implements ConfigurationContract
 
             return new Icon($icon->src, $icon->mimeType, $icon->sizes, $icon->theme);
         }, new ReflectionClass(static::class)->getAttributes(IconAttribute::class)) ?: null;
+    }
+
+    /**
+     * Seconds a request this entity sends waits for its response before it is cancelled, as the lifecycle asks.
+     */
+    public function requestTimeout(): float
+    {
+        return $this->request_timeout ?? (float) config('mcp.request_timeout');
     }
 
     /**

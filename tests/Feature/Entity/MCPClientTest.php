@@ -134,3 +134,25 @@ it('sends a 2026-07-28 request as built, with its _meta, and types its response.
         ->and($sent['params']['_meta']['io.modelcontextprotocol/clientInfo']['name'])->toBe('tester')
         ->and($got)->toBeInstanceOf(CallToolResult::class);
 });
+
+it('answers every request still in flight with an error when it closes, saying why.', function () {
+    $client = new MCPClient($this->configuration, '2025-06-18');
+    $got = null;
+    $client->request(new V20250618\Messaging\Ping\PingRequest(), new RequestId(1), function($r) use (&$got) { $got = $r; });
+    $client->request(new V20250618\Messaging\Ping\PingRequest(), new RequestId(2));
+
+    $client->close('The server went away.');
+
+    expect($got)->toBeInstanceOf(MCPError::class)
+        ->and($got->toArray()['message'])->toBe('The server went away.')
+        ->and($this->signalled)->toHaveCount(1)
+        ->and($this->signalled[0])->toBeInstanceOf(ResponseReceived::class)
+        ->and($this->signalled[0]->id->id)->toBe(2)
+        ->and($this->signalled[0]->method)->toBe('ping')
+        ->and($this->signalled[0]->response->toArray()['message'])->toBe('The server went away.');
+
+    // A late answer finds nothing waiting.
+    receives($client, '{"jsonrpc":"2.0","id":1,"result":{}}');
+
+    expect($this->signalled)->toHaveCount(1);
+});

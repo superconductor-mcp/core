@@ -7,6 +7,9 @@ tags: [entity, server, client, messages, dispatch]
 status: draft
 generated: { by: claude-code/claude-opus-5-5, at: 2026-11-03T18:00:00Z }
 sources:
+  - id: timeouts
+    resource: tests/Feature/Entity/RequestTimeoutTest.php
+    title: Request timeout tests
   - id: entity
     resource: src/Fabricate/Mechanism/Entity.php
     title: Entity
@@ -22,6 +25,12 @@ sources:
   - id: client-tests
     resource: tests/Feature/Entity/MCPClientTest.php
     title: MCPClient tests
+  - id: connection
+    resource: src/Fabricate/Client/ClientConnection.php
+    title: ClientConnection
+  - id: connection-failed
+    resource: src/Fabricate/Client/Signals/ConnectionFailed.php
+    title: ConnectionFailed
   - id: envelope
     resource: src/Fabricate/Mechanism/Envelope.php
     title: Envelope
@@ -64,9 +73,21 @@ if($reply = $server->receiveMessage($decoded)) $pipe->send($reply->toJson());
 
 # Client
 
-`MCPClient` is built by the client's transport once its handshake is done: an `MCPServerDefinition` from `mcp.mcp_servers` connects a `ClientConfiguration`, returning a `ClientConnection` whose `client()` is the `MCPClient`, or null with the reason in `failure()`. It is built in the version it agreed on; on 2026-07-28, which has none, it is built in that version and each request it sends carries its `_meta` as built. A server request goes through `dispatch()` to the client-side procedures, and the client returns the result like a server; see [Client capabilities](/mechanism/client-capabilities.md). `request($request, $id, $then)` takes an optional closure, which gets the response's typed result or `MCPError`; a response nothing waits on fires `ResponseReceived` (session id, request id, method, response). Every notification fires `NotificationReceived`. The application decides whether and when to react.[^client][^client-tests]
+`MCPClient` is built by the client's transport once its handshake is done: an `MCPServerDefinition` from `mcp.mcp_servers` connects a `ClientConfiguration`, returning a `ClientConnection` whose `client()` is the `MCPClient`, or null with the reason in `failure()`. It is built in the version it agreed on; on 2026-07-28, which has none, it is built in that version and each request it sends carries its `_meta` as built. A server request goes through `dispatch()` to the client-side procedures, and the client returns the result like a server; see [Client capabilities](/mechanism/client-capabilities.md). `request($request, $id, $then)` takes an optional closure, which gets the response's typed result or `MCPError`; a response nothing waits on fires `ResponseReceived` (session id, request id, method, response). Every notification fires `NotificationReceived`; `notifications/cancelled` also stops whatever is still to be sent for the server request it names, as `MCPServer` does for client requests. The application decides whether and when to react.[^client][^client-tests]
+
+`close($reason)` ends the client's part in the session: every request still in flight is answered with an `MCPError` (-32603) carrying the reason, through its closure or `ResponseReceived`, so nothing waits on a request that can no longer be answered. `fail($id, $reason)` does the same for one request the transport could not get answered, and `failPending($reason)` for all of them without closing.[^client][^client-tests]
+
+# Client connections
+
+`Fabricate\Client\ClientConnection` is the abstract connection every transport package extends; it implements the `ClientConnection` contract (`open()`, `close()`, `client()`, `failure()`). It owns no handshake: the handshake belongs to the versions that have one and to the transport that runs it, so it lives in each transport package, and the base sends nothing until the transport reports the agreed version with `started($version)`, which builds `MCPClient` in it. Until then what the server sends waits in the inbox, where the transport's handshake takes its own answers; the rest, a logging notification say, reaches the client first thing. Afterwards every message goes to `MCPClient::receiveMessage()`, a 2025-03-26 batch is answered as one batch, other versions refuse batches, and what the client queues goes out; `deliver()` takes `OutboundMessage` mail for the session. A transport implements `send($message, $version)` and `disconnect()`, hands what it reads to `received()`, and may run the loop with `wait($done, $seconds)`.[^connection]
+
+A connection that breaks after the handshake calls `lost($reason)`: the client is gone, every request it had in flight gets the reason as its error, `failure()` keeps it, and `ConnectionFailed` (session id, reason) fires, so the application hears that its session ended rather than finding out from a timeout. Closing the connection answers requests in flight the same way, with "The connection closed."[^connection][^connection-failed]
 
 `MCPServer::receiveResponse()` gets the same id and method; it does nothing yet, since the server sends no requests until client capabilities are built.[^server]
+
+# Request timeouts
+
+Every request an entity sends through `request()` starts a timer of its configuration's `requestTimeout()` seconds: `$request_timeout` on the configuration, or `mcp.request_timeout` (60). A response cancels it. When it fires, the lifecycle's rule applies: the entity sends `notifications/cancelled` in its version, forgets the request, so a late answer is dropped, and fires `RequestTimedOut` (session id, request id, method). `MCPClient` drops the request's closure with it. `subscriptions/listen` stays open until cancelled and has no timeout. Closing an entity stops its timers. On 2026-07-28 over Streamable HTTP the client's transport turns the cancellation into closing the request's stream.[^entity][^timeouts]
 
 # Queue and mail
 
@@ -95,3 +116,4 @@ A tool, prompt or resource can ask for the `RequestContext` in `handle()` or `re
 [^mail]: OutboundMessage
 [^context]: RequestContext
 [^async-tests]: Task and async call tests
+[^timeouts]: Request timeout tests

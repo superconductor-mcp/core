@@ -11,10 +11,12 @@ use Fabricate\Contracts\Core\SuperconductorMCPException;
 use Fabricate\Contracts\Client\Client;
 use Fabricate\Schema\V20260728\Concerns\InputResponse;
 use Fabricate\Contracts\Schema\Messaging\Inputs\InputResponseRequest;
+use Fabricate\Contracts\Schema\Messaging\Cancellation\CancelledNotification;
 use Fabricate\Contracts\Schema\Messaging\MCPError;
 use Fabricate\Contracts\Schema\Messaging\Notification;
 use Fabricate\Contracts\Schema\Messaging\Request;
 use Fabricate\Contracts\Schema\Messaging\Result;
+use Fabricate\Contracts\Schema\ProtocolVersion;
 use Fabricate\Contracts\Schema\RequestId;
 use Fabricate\Contracts\Schema\ElicitationErrorCode;
 use Fabricate\Contracts\Schema\RPCErrorCode;
@@ -83,12 +85,48 @@ class MCPClient extends Entity implements Client
     }
 
     /**
-     * Ends the client's part in the session: roots changes no longer reach it.
+     * Ends the client's part in the session: every request still in flight is answered with an error saying why, and
+     * roots changes no longer reach it.
      */
-    public function close(): void
+    public function close(string $reason = 'The connection closed.'): void
     {
         unset($this->clients[$this->session_id]);
         $this->clients = null;
+        $this->failPending($reason);
+    }
+
+    /**
+     * Answers every request still in flight with an internal error carrying $reason, as if the server had refused it:
+     * its closure gets the error, or ResponseReceived fires with it. Nothing waits on those requests afterwards.
+     */
+    public function failPending(string $reason): void
+    {
+        foreach(array_keys($this->pending_requests) as $key) $this->fail(new RequestId(json_decode($key)), $reason);
+    }
+
+    /**
+     * Answers one request in flight with an internal error carrying $reason: the transport could not get it answered.
+     * A request already answered, or unknown, is left alone.
+     */
+    public function fail(RequestId $id, string $reason): void
+    {
+        $key = self::pendingKey($id);
+        $then = $this->awaiting[$key] ?? null;
+        unset($this->awaiting[$key], $this->retryable[$key]);
+
+        if(is_null($method = $this->forget($id))) return;
+
+        $this->deliver($id, $method, new V20260728\Messaging\MCPError(RPCErrorCode::INTERNAL_ERROR->value, $reason), $then);
+    }
+
+    /**
+     * Nothing waits on a request that timed out: its closure is dropped with it.
+     */
+    protected function timedOut(RequestId $id): void
+    {
+        unset($this->awaiting[self::pendingKey($id)], $this->retryable[self::pendingKey($id)]);
+
+        parent::timedOut($id);
     }
 
     public function receiveRequest(Request $request, ?RequestContext $context = null): Result|MCPError|Deferred
@@ -101,11 +139,19 @@ class MCPClient extends Entity implements Client
     }
 
     /**
-     * On 2025-11-25 notifications/elicitation/complete is ignored unless it names a URL elicitation still open with
-     * this client, as the elicitation page requires; the rest go out as NotificationReceived.
+     * notifications/cancelled stops whatever is still to be sent for the server request it names. On 2025-11-25
+     * notifications/elicitation/complete is ignored unless it names a URL elicitation still open with this client, as
+     * the elicitation page requires. The rest, cancellations included, go out as NotificationReceived.
      */
     public function receiveNotification(Notification $notification): void
     {
+        if($notification instanceof CancelledNotification) {
+            $request_id = $notification->toArray()['params']['requestId'] ?? null;
+
+            // 2025-11-25 lets requestId be left out, for tasks, which tasks/cancel stops instead.
+            if(is_string($request_id) || is_int($request_id)) $this->cancel(new RequestId($request_id));
+        }
+
         if($notification instanceof V20251125\Messaging\Elicitation\ElicitationCompleteNotification) {
             $id = $notification->toArray()['params']['elicitationId'];
 
@@ -228,13 +274,13 @@ class MCPClient extends Entity implements Client
     {
         if(! $this->configuration->capabilities($this->active_protocol_version)->offersCapability('roots.listChanged')) return;
 
-        $notification = match($this->active_protocol_version) {
-            '2024-11-05' => new V20241105\Messaging\Roots\RootsListChangedNotification(),
-            '2025-03-26' => new V20250326\Messaging\Roots\RootsListChangedNotification(),
-            '2025-06-18' => new V20250618\Messaging\Roots\RootsListChangedNotification(),
-            '2025-11-25' => new V20251125\Messaging\Roots\RootsListChangedNotification(),
+        $notification = match(ProtocolVersion::from($this->active_protocol_version)) {
+            ProtocolVersion::V20241105 => new V20241105\Messaging\Roots\RootsListChangedNotification(),
+            ProtocolVersion::V20250326 => new V20250326\Messaging\Roots\RootsListChangedNotification(),
+            ProtocolVersion::V20250618 => new V20250618\Messaging\Roots\RootsListChangedNotification(),
+            ProtocolVersion::V20251125 => new V20251125\Messaging\Roots\RootsListChangedNotification(),
             // 2026-07-28 has no roots list_changed notification.
-            default => null,
+            ProtocolVersion::V20260728 => null,
         };
 
         if($notification) $this->notify($notification);

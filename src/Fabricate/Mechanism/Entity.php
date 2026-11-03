@@ -14,13 +14,21 @@ use Fabricate\Contracts\Schema\Messaging\Tasks\CreateTaskResult;
 use Fabricate\Contracts\Schema\Messaging\RPC\JSONRPCMessage;
 use Fabricate\Contracts\Schema\LoggingLevel;
 use Fabricate\Contracts\Schema\ProgressToken;
+use Fabricate\Contracts\Schema\ProtocolVersion;
 use Fabricate\Contracts\Schema\RequestId;
 use Fabricate\Core\Routing\ProcedureRouterFacade;
 use Fabricate\Mechanism\Decoding\DecodedError;
 use Fabricate\Mechanism\Decoding\DecodedRequest;
 use Fabricate\Mechanism\Decoding\DecodedResponse;
+use Fabricate\Mechanism\Signals\RequestTimedOut;
+use Fabricate\Schema\V20241105;
+use Fabricate\Schema\V20250326;
+use Fabricate\Schema\V20250618;
+use Fabricate\Schema\V20251125;
 use Fabricate\Schema\V20260728;
 use Fabricate\Schema\V20260728\Concerns\MCPErrorCode;
+use Voyager\Contracts\IOPools\Loop;
+use Voyager\Contracts\IOPools\LoopResources\Timer;
 use Voyager\NutsAndBolts\Str;
 
 abstract class Entity implements EntityContract
@@ -36,6 +44,9 @@ abstract class Entity implements EntityContract
 
     /** @var array<string, Cancellation> The requests whose answers are still coming, by json-encoded id. */
     protected array $answering = [];
+
+    /** @var array<string, Timer> When each sent request times out, by json-encoded id. */
+    private array $timeouts = [];
 
     /** Identifies this entity's session: in signal names, and on mail its async work posts back to the loop. */
     public readonly string $session_id;
@@ -161,7 +172,59 @@ abstract class Entity implements EntityContract
         $this->pending_requests[self::pendingKey($message->id)] = $request->method;
         $this->queue($message);
 
+        // A subscription stays open until it is cancelled, so no answer to it is late.
+        if($request->method !== 'subscriptions/listen' && app()->isBound(Loop::class))
+        {
+            $this->timeouts[self::pendingKey($message->id)] = app(Loop::class)->at($this->configuration->requestTimeout(), fn() => $this->timedOut($message->id));
+        }
+
         return $message->id;
+    }
+
+    /**
+     * A sent request went unanswered past the configuration's request timeout: the lifecycle asks the sender to cancel
+     * it and stop waiting, so it sends notifications/cancelled, forgets the request, and fires RequestTimedOut.
+     */
+    protected function timedOut(RequestId $id): void
+    {
+        if(is_null($method = $this->forget($id))) return;
+
+        $reason = 'The request timed out.';
+
+        $this->notify(match(ProtocolVersion::from($this->active_protocol_version)) {
+            ProtocolVersion::V20241105 => new V20241105\Messaging\Cancellation\CancelledNotification($id, $reason),
+            ProtocolVersion::V20250326 => new V20250326\Messaging\Cancellation\CancelledNotification($id, $reason),
+            ProtocolVersion::V20250618 => new V20250618\Messaging\Cancellation\CancelledNotification($id, $reason),
+            ProtocolVersion::V20251125 => new V20251125\Messaging\Cancellation\CancelledNotification(new V20251125\Messaging\Params\CancelledNotificationParams($id, $reason)),
+            ProtocolVersion::V20260728 => new V20260728\Messaging\Cancellation\CancelledNotification(new V20260728\Messaging\Params\CancelledNotificationParams($id, $reason)),
+        });
+
+        signal(new RequestTimedOut($this->session_id, $id, $method));
+    }
+
+    /**
+     * Stops waiting for the answer to a sent request: its timeout is cancelled and it is forgotten. Returns the
+     * request's method, or null when nothing waited on it.
+     */
+    protected function forget(?RequestId $id): ?string
+    {
+        $key = self::pendingKey($id);
+        $method = $this->pending_requests[$key] ?? null;
+
+        ($this->timeouts[$key] ?? null)?->cancel();
+        unset($this->pending_requests[$key], $this->timeouts[$key]);
+
+        return $method;
+    }
+
+    /**
+     * Stops every request timeout, when the entity's session ends.
+     */
+    protected function stopTimeouts(): void
+    {
+        foreach($this->timeouts as $timeout) $timeout->cancel();
+
+        $this->timeouts = [];
     }
 
     /**
@@ -191,8 +254,7 @@ abstract class Entity implements EntityContract
 
         if($message instanceof DecodedResponse || $message instanceof DecodedError)
         {
-            $request_method = $this->answered_method = $this->pending_requests[self::pendingKey($message->id())] ?? null;
-            unset($this->pending_requests[self::pendingKey($message->id())]);
+            $request_method = $this->answered_method = $this->forget($message->id());
         }
 
         return MessageHydrator::hydrateAs($message, $this->active_protocol_version, $request_method);
@@ -205,13 +267,13 @@ abstract class Entity implements EntityContract
      */
     private function unsupportedVersion(DecodedMessage $message): ?MCPError
     {
-        if($this->active_protocol_version !== '2026-07-28' || ! $message instanceof DecodedRequest) return null;
+        if($this->active_protocol_version !== ProtocolVersion::V20260728->value || ! $message instanceof DecodedRequest) return null;
 
         $requested = $message->params['_meta']['io.modelcontextprotocol/protocolVersion'] ?? null;
 
         if(! is_string($requested) || $requested === $this->active_protocol_version) return null;
 
-        $supported = array_values(array_intersect($this->configuration->supportedProtocolVersions(), ['2026-07-28']));
+        $supported = array_values(array_intersect($this->configuration->supportedProtocolVersions(), [ProtocolVersion::V20260728->value]));
 
         return new V20260728\Messaging\MCPError(MCPErrorCode::UNSUPPORTED_PROTOCOL_VERSION->value, "Unsupported protocol version: [{$requested}].", ['supported' => $supported, 'requested' => $requested]);
     }

@@ -211,6 +211,16 @@ it('answers later by mail when the concrete runs async.', function () {
         ->and($this->mail[0]->message()->toArray()['result']['content']['text'])->toBe('done');
 });
 
+it('sends nothing for a server request the server cancelled while the client was still answering it.', function () {
+    $client = new MCPClient(choosingClient(['sampling' => LaterSampling::class], ['sampling' => true]), '2025-06-18');
+
+    answer($client, ['id' => 8, 'method' => 'sampling/createMessage', 'params' => samplingParams()]);
+    answer($client, ['method' => 'notifications/cancelled', 'params' => ['requestId' => 8, 'reason' => 'No longer needed.']]);
+    LaterSampling::$pending->release('2025-06-18');
+
+    expect($this->mail)->toHaveCount(0);
+});
+
 it('runs sampling and elicitation as 2025-11-25 tasks when asked, and serves them through tasks/*.', function () {
     $client = new MCPClient($this->curious, '2025-11-25');
 
