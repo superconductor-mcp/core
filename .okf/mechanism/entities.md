@@ -26,8 +26,8 @@ sources:
     resource: tests/Feature/Entity/MCPClientTest.php
     title: MCPClient tests
   - id: connection
-    resource: src/Fabricate/Client/ClientConnection.php
-    title: ClientConnection
+    resource: src/Fabricate/Contracts/Client/ClientConnection.php
+    title: ClientConnection contract
   - id: connection-failed
     resource: src/Fabricate/Client/Signals/ConnectionFailed.php
     title: ConnectionFailed
@@ -79,9 +79,9 @@ if($reply = $server->receiveMessage($decoded)) $pipe->send($reply->toJson());
 
 # Client connections
 
-`Fabricate\Client\ClientConnection` is the abstract connection every transport package extends; it implements the `ClientConnection` contract (`open()`, `close()`, `client()`, `failure()`). It owns no handshake: the handshake belongs to the versions that have one and to the transport that runs it, so it lives in each transport package, and the base sends nothing until the transport reports the agreed version with `started($version)`, which builds `MCPClient` in it. Until then what the server sends waits in the inbox, where the transport's handshake takes its own answers; the rest, a logging notification say, reaches the client first thing. Afterwards every message goes to `MCPClient::receiveMessage()`, a 2025-03-26 batch is answered as one batch, other versions refuse batches, and what the client queues goes out; `deliver()` takes `OutboundMessage` mail for the session. A transport implements `send($message, $version)` and `disconnect()`, hands what it reads to `received()`, and may run the loop with `wait($done, $seconds)`.[^connection]
+Core holds only the `ClientConnection` contract (`open()`, `close()`, `client()`, `failure()`), the `MCPServerDefinition` that connects a configuration, and `mcp.clients.initialize_timeout`. Every connection class lives in its transport package, handshake and session alike: `StdioClientConnection` in stdio, `SSEClientConnection` and `StreamableClientConnection` in web, each on its own, as `SSESession` and `StreamableSession` are on the server side. No handshake, and no shared connection code, is in core: the handshake belongs to the versions that have one and to the transport that runs it.
 
-A connection that breaks after the handshake calls `lost($reason)`: the client is gone, every request it had in flight gets the reason as its error, `failure()` keeps it, and `ConnectionFailed` (session id, reason) fires, so the application hears that its session ended rather than finding out from a timeout. Closing the connection answers requests in flight the same way, with "The connection closed."[^connection][^connection-failed]
+A connection that breaks after the handshake closes its client with the reason: every request in flight gets it as its error, `failure()` keeps it, and `ConnectionFailed` (session id, reason) fires, so the application hears a session end without polling.[^connection][^client]
 
 `MCPServer::receiveResponse()` gets the same id and method; it does nothing yet, since the server sends no requests until client capabilities are built.[^server]
 

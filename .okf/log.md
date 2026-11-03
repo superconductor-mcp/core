@@ -2,7 +2,7 @@
 
 ## 2026-11-03
 
-* **Creation**: [Entities](mechanism/entities.md): `Fabricate\Client\ClientConnection`, the abstract connection the transport packages extend, for the session only: `started($version)` builds the client and hands it what waited in the inbox, then receive, batch and send-queue handling, `lost()` and the `ConnectionFailed` signal. No handshake is in core: each transport package runs its own and reports the version. **Update**: `MCPClient::close($reason)` answers every request in flight with an `MCPError` carrying the reason; `fail($id, $reason)` and `failPending($reason)`. `Entity::forget()` drops a sent request and its timeout. Version literals in `Entity` and `MCPClient` replaced by `ProtocolVersion`.
+* **Update**: [Entities](mechanism/entities.md): `MCPClient::close($reason)` answers every request in flight with an `MCPError` carrying the reason; `fail($id, $reason)` and `failPending($reason)`; the `ConnectionFailed` signal. `Entity::forget()` drops a sent request and its timeout. Version literals in `Entity` and `MCPClient` replaced by `ProtocolVersion`. No client connection code is in core: each transport package owns its connection, handshake and session.
 * **Update**: [Entities](mechanism/entities.md): request timeouts: `mcp.request_timeout` and `$request_timeout`, `notifications/cancelled` on expiry, `RequestTimedOut`; `subscriptions/listen` is exempt.
 * **Update**: [Entities](mechanism/entities.md): `MCPClient` stops answering a server request the server cancelled; nothing is sent for it.
 * **Update**: [Entities](mechanism/entities.md): `MCPServerDefinition` and the `ClientConnection` contract, which transport packages implement; `mcp.mcp_servers` and `mcp.clients.initialize_timeout` (30 seconds) in config.
