@@ -23,6 +23,7 @@ use Fabricate\Contracts\Schema\RPCErrorCode;
 use Fabricate\Core\Rpc\Procedures\ClientCapabilityProcedure;
 use Fabricate\Mechanism\Deferred;
 use Fabricate\Mechanism\Entity;
+use Fabricate\Mechanism\Envelope;
 use Fabricate\Mechanism\RequestContext;
 use Fabricate\Schema\V20241105;
 use Fabricate\Schema\V20250326;
@@ -59,6 +60,9 @@ class MCPClient extends Entity implements Client
     /** @var array<string, true> On 2025-11-25, the URL elicitations the server started with this client and hasn't completed, by elicitationId. */
     private array $open_elicitations = [];
 
+    /** Why this client closed, once it has; a request sent afterwards is answered with it. */
+    private ?string $closed = null;
+
     public function __construct(
         ClientConfiguration $configuration,
         string $active_protocol_version,
@@ -76,6 +80,15 @@ class MCPClient extends Entity implements Client
      */
     public function request(Request $request, ?RequestId $id = null, ?Closure $then = null): RequestId
     {
+        // A closed client sends nothing: the session is over, and the caller hears why at once.
+        if(! is_null($this->closed))
+        {
+            $id = Envelope::request($this->active_protocol_version, $request, $id)->id;
+            $this->deliver($id, $request->method, $this->error(RPCErrorCode::INTERNAL_ERROR->value, $this->closed), $then);
+
+            return $id;
+        }
+
         $id = parent::request($request, $id);
 
         if($then) $this->awaiting[self::pendingKey($id)] = $then;
@@ -90,6 +103,7 @@ class MCPClient extends Entity implements Client
      */
     public function close(string $reason = 'The connection closed.'): void
     {
+        $this->closed = $reason;
         unset($this->clients[$this->session_id]);
         $this->clients = null;
         $this->failPending($reason);
@@ -116,7 +130,7 @@ class MCPClient extends Entity implements Client
 
         if(is_null($method = $this->forget($id))) return;
 
-        $this->deliver($id, $method, new V20260728\Messaging\MCPError(RPCErrorCode::INTERNAL_ERROR->value, $reason), $then);
+        $this->deliver($id, $method, $this->error(RPCErrorCode::INTERNAL_ERROR->value, $reason), $then);
     }
 
     /**

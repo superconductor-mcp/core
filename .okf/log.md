@@ -2,6 +2,7 @@
 
 ## 2026-11-03
 
+* **Fix**: [Entities](mechanism/entities.md): a closed `MCPClient` queued requests nothing would send; it now answers them at once with its close reason. `fail()` and `dispatch()` built the 2026-07-28 `MCPError` in every version; `Entity::error()` builds the session version's. `Entity::pending($id)`.
 * **Update**: [Entities](mechanism/entities.md): `MCPClient::close($reason)` answers every request in flight with an `MCPError` carrying the reason; `fail($id, $reason)` and `failPending($reason)`; the `ConnectionFailed` signal. `Entity::forget()` drops a sent request and its timeout. Version literals in `Entity` and `MCPClient` replaced by `ProtocolVersion`. No client connection code is in core: each transport package owns its connection, handshake and session.
 * **Update**: [Entities](mechanism/entities.md): request timeouts: `mcp.request_timeout` and `$request_timeout`, `notifications/cancelled` on expiry, `RequestTimedOut`; `subscriptions/listen` is exempt.
 * **Update**: [Entities](mechanism/entities.md): `MCPClient` stops answering a server request the server cancelled; nothing is sent for it.

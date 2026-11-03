@@ -11,6 +11,8 @@ use Fabricate\Contracts\Schema\Messaging\Tools\CallToolResult;
 use Fabricate\Contracts\Schema\RequestId;
 use Fabricate\Core\Routing\ProcedureRouter;
 use Fabricate\Mechanism\MessageDecoder;
+use Fabricate\Schema\V20241105;
+use Fabricate\Schema\V20250326;
 use Fabricate\Schema\V20250618;
 use Fabricate\Schema\V20251125;
 use Fabricate\Schema\V20260728;
@@ -156,3 +158,41 @@ it('answers every request still in flight with an error when it closes, saying w
 
     expect($this->signalled)->toHaveCount(1);
 });
+
+it('answers a request sent after it closed with the close reason at once, without queuing it.', function () {
+    $client = new MCPClient($this->configuration, '2025-06-18');
+    $client->close('The server went away.');
+
+    $got = null;
+    $client->request(new V20250618\Messaging\Ping\PingRequest(), new RequestId(1), function($r) use (&$got) { $got = $r; });
+    $client->request(new V20250618\Messaging\Ping\PingRequest(), new RequestId(2));
+
+    expect($got)->toBeInstanceOf(MCPError::class)
+        ->and($got->toArray()['message'])->toBe('The server went away.')
+        ->and($client->pullQueued())->toBe([])
+        ->and($this->signalled)->toHaveCount(1)
+        ->and($this->signalled[0]->id->id)->toBe(2)
+        ->and($this->signalled[0]->response->toArray()['message'])->toBe('The server went away.');
+});
+
+it('builds the error for a failed request in the session version\'s class.', function (string $version, string $class) {
+    $client = new MCPClient($this->configuration, $version);
+    $got = null;
+    $client->request(match($version) {
+        '2024-11-05' => new V20241105\Messaging\Ping\PingRequest(),
+        '2025-03-26' => new V20250326\Messaging\Ping\PingRequest(),
+        '2025-06-18' => new V20250618\Messaging\Ping\PingRequest(),
+        '2025-11-25' => new V20251125\Messaging\Ping\PingRequest(new RequestId(1)),
+        '2026-07-28' => new V20260728\Messaging\Tools\ListToolsRequest(new RequestId(1), new V20260728\Messaging\Params\PaginatedRequestParams(new V20260728\Messaging\MetaObjects\RequestMetaObject('2026-07-28', $this->configuration->capabilities('2026-07-28')))),
+    }, new RequestId(1), function($r) use (&$got) { $got = $r; });
+
+    $client->fail(new RequestId(1), 'Lost.');
+
+    expect($got)->toBeInstanceOf($class)->and($got->toArray()['code'])->toBe(-32603);
+})->with([
+    ['2024-11-05', V20241105\Messaging\MCPError::class],
+    ['2025-03-26', V20250326\Messaging\MCPError::class],
+    ['2025-06-18', V20250618\Messaging\MCPError::class],
+    ['2025-11-25', V20251125\Messaging\MCPError::class],
+    ['2026-07-28', V20260728\Messaging\MCPError::class],
+]);

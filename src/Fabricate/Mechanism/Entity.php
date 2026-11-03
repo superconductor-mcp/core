@@ -218,6 +218,14 @@ abstract class Entity implements EntityContract
     }
 
     /**
+     * Whether a request this entity sent is still waiting for its answer.
+     */
+    public function pending(RequestId $id): bool
+    {
+        return isset($this->pending_requests[self::pendingKey($id)]);
+    }
+
+    /**
      * Stops every request timeout, when the entity's session ends.
      */
     protected function stopTimeouts(): void
@@ -295,7 +303,21 @@ abstract class Entity implements EntityContract
         try {
             return ProcedureRouterFacade::dispatch($this->active_protocol_version, $request, $this->configuration, $context);
         } catch (SuperconductorMCPException $e) {
-            return new V20260728\Messaging\MCPError($e->getCode(), $e->getMessage());
+            return $this->error($e->getCode(), $e->getMessage());
         }
+    }
+
+    /**
+     * An error in this entity's protocol version's class.
+     */
+    protected function error(int $code, string $message, mixed $data = null): MCPError
+    {
+        return match(ProtocolVersion::from($this->active_protocol_version)) {
+            ProtocolVersion::V20241105 => new V20241105\Messaging\MCPError($code, $message, $data),
+            ProtocolVersion::V20250326 => new V20250326\Messaging\MCPError($code, $message, $data),
+            ProtocolVersion::V20250618 => new V20250618\Messaging\MCPError($code, $message, $data),
+            ProtocolVersion::V20251125 => new V20251125\Messaging\MCPError($code, $message, $data),
+            ProtocolVersion::V20260728 => new V20260728\Messaging\MCPError($code, $message, $data),
+        };
     }
 }
