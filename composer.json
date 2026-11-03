@@ -32,6 +32,7 @@
     },
     "replace": {
         "superconductor/contracts": "self.version",
+        "superconductor/schema": "self.version",
         "superconductor/nuts-and-bolts": "self.version",
         "superconductor/mechanism": "self.version",
         "superconductor/server": "self.version",

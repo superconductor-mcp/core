@@ -1,0 +1,39 @@
+<?php
+
+namespace Fabricate\Schema\V20260728\Capabilities\Sampling;
+
+use Fabricate\Contracts\Schema\Capabilities\SamplingMessage as SamplingContract;
+use Fabricate\Contracts\Schema\Concerns\Role;
+use Fabricate\Schema\Common\Concerns\HasContentRole;
+use Fabricate\Schema\V20260728\Concerns\SamplingMessageContentBlock;
+use Fabricate\Schema\V20260728\MetaObject;
+
+readonly class SamplingMessage implements SamplingContract
+{
+    use HasContentRole;
+
+    /**
+     * @param Role $role
+     * @param SamplingMessageContentBlock|SamplingMessageContentBlock[] $content
+     * @param MetaObject|null $_meta
+     */
+    public function __construct(
+        public Role $role,
+        public SamplingMessageContentBlock|array $content,
+        public ?MetaObject $_meta = null,
+    ) {}
+
+    public function toArray(): array
+    {
+        $results = [
+            'role' => $this->role->value,
+            'content' => is_array($this->content)
+                ? array_map(fn(SamplingMessageContentBlock $content) => $content->toArray(), $this->content)
+                : $this->content->toArray(),
+        ];
+
+        if(isset($this->_meta)) $results['_meta'] = $this->_meta->toArray() ?: (object) [];
+
+        return $results;
+    }
+}

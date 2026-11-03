@@ -1,0 +1,42 @@
+<?php
+
+namespace Fabricate\Schema\V20250618\Messaging\Initialize;
+
+use Fabricate\Contracts\Schema\Messaging\Initialize\InitializeRequest as InitializeContract;
+use Fabricate\Contracts\Schema\ProgressToken;
+use Fabricate\Schema\V20250618\Implementation;
+use Fabricate\Schema\V20250618\Messaging\Request;
+use Fabricate\Contracts\Schema\Messaging\ClientRequest;
+use Fabricate\Schema\V20250618\Capabilities\ClientCapabilities;
+
+final readonly class InitializeRequest extends Request implements InitializeContract, ClientRequest
+{
+    private string $protocol_version;
+
+    public function __construct(
+        string $protocol_version,
+        ClientCapabilities $capabilities,
+        Implementation $client_info,
+        ?array $_meta = null,
+        ?ProgressToken $progress_token = null,
+    ) {
+        $this->protocol_version = $protocol_version;
+
+        $params = [
+            'protocolVersion' => $protocol_version,
+            'capabilities' => $capabilities->toArray() ?: (object) [],
+            'clientInfo' => $client_info->toArray(),
+        ];
+        parent::__construct(
+            'initialize',
+            $params,
+            $_meta,
+            $progress_token,
+        );
+    }
+
+    public function protocolVersion(): string
+    {
+        return $this->protocol_version;
+    }
+}

@@ -1,0 +1,16 @@
+<?php
+
+namespace Fabricate\Core\Capabilities\Tools;
+
+use Fabricate\Contracts\Mechanism\Attributes\ToolCall;
+use Fabricate\Contracts\Server\ServerConfiguration;
+use Fabricate\Mechanism\Tool;
+
+#[ToolCall('list_resources', 'List the resources this server offers.')]
+final class ListResourcesTool extends Tool
+{
+    public function handle(ServerConfiguration $server, Catalog $catalog): string
+    {
+        return json_encode($catalog->resources($server), JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+    }
+}

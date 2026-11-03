@@ -1,38 +1,42 @@
 <?php
 
 return [
+    'supported_protocol_versions' => [
+        '2024-11-05',
+        '2025-03-26',
+        '2025-06-18',
+        '2025-11-25',
+        '2026-07-28'
+    ],
+
+    // Most messages a single JSON-RPC batch may carry.
+    'max_batch_size' => 100,
+
+    // Where the application keeps its server and client configurations; both must sit under the app namespace.
     'servers' => [
-        'default_discovery_namespace' => "App\\Mcp\\Servers",
-        'supported_mcp_versions' => ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05']
+        'discovery_namespace' => 'App\\Mcp\\Servers',
     ],
-    // servers this application connects to as a client, keyed by name; 'type' picks the transport
-    // and defaults to 'stdio' when the entry has a 'command', so a Claude Desktop entry pastes in as-is
-    'mcp_servers' => [],
-    'client' => [
-        // seconds a client may spend between opening its connection and finishing the handshake
-        'connect_timeout' => 20,
+    'clients' => [
+        'discovery_namespace' => 'App\\Mcp\\Clients',
     ],
+    'tools' => [
+        'discovery_namespace' => 'App\\Mcp\\Tools',
+    ],
+    'prompts' => [
+        'discovery_namespace' => 'App\\Mcp\\Prompts',
+    ],
+    // Resources and resource templates share one namespace.
+    'resources' => [
+        'discovery_namespace' => 'App\\Mcp\\Resources',
+    ],
+
+    // Seconds a 2026-07-28 requestState stays valid for the retry it was issued for.
+    'request_state' => [
+        'ttl' => 300,
+    ],
+
+    // Most items a list request returns per page; the rest follow behind a cursor.
     'pagination' => [
-        // how many entries one page of tools/list, resources/list or resources/templates/list holds
         'page_size' => 50,
-    ],
-    'logging' => [
-        // the level a session starts at, until its client sends logging/setLevel
-        'default_level' => 'info',
-    ],
-    'elicitation' => [
-        // seconds a handler waits for the user's answer before it cancels the question
-        'timeout' => 600,
-    ],
-    'progress' => [
-        // the shortest gap, in seconds, between two progress notifications for one request
-        'min_interval' => 0.1,
-    ],
-    'completion' => [
-        // completion/complete calls a session may make per window before it is refused
-        'rate_limit' => [
-            'max' => 10,
-            'per_seconds' => 1,
-        ],
     ],
 ];

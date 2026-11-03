@@ -1,62 +1,34 @@
-# Log
+# Update Log
 
-## 2026-10-29 (2025-11-25)
+## 2026-11-02
 
-* **Argument types (SEP-1303)**: `tools/call` checks each argument with a declared property against it (`SchemaProperty::problem()`), so a wrong type, length, range, format or enum value is a bad argument like a missing one, instead of PHP coercing it ([definitions](server/definitions.md)).
+* **Update**: [Tools](mechanism/tools.md): `ToolRegistry` enforces the tool name rules.
+* **Update**: [Tools](mechanism/tools.md), [Prompts](mechanism/prompts.md), [Resources](mechanism/resources.md): titles, `#[ToolAnnotations]`, `#[ResourceAnnotations]`, `#[Icon]`, `#[Argument]`, resource `size`, `Tool::outputSchema()` with `structuredContent`, and tool content objects passed through. `#[ServerConfig]` takes `instructions`, sent with the initialize result, and the server's `#[Icon]`s go in `serverInfo` from 2025-11-25.
+* **Update**: [Entities](mechanism/entities.md): `notifications/cancelled`, log messages through the `LogMessage` signal and `logging/setLevel`, and progress through `_meta.progressToken`; `RequestContext` gains `log()`, `progress()` and `cancelled()` and is injected into `handle()` and `read()`. `LoggingLevel::atLeast()`.
+* **Update**: `OutboundMessage` carries `related_request`, the request a notification was sent while answering; `RequestContext::notify()` sets it.
+* **Update**: `Entity::hasQueued()` says whether anything is queued without taking it.
+* **Update**: [Entities](mechanism/entities.md): one listener per signal per dispatcher instead of one per `MCPServer`; `close()` removes the server from the open sessions.
+* **Update**: [Resources](mechanism/resources.md): a URI nothing reads is -32002 with `data.uri` through 2025-11-25 and -32602 on 2026-07-28. New `ResourceErrorCode`; the flat-era `MCPError`/`JSONRPCError` and 2025-11-25 `MCPError` accept it. `SuperconductorMCPException` carries `data` into the error.
+* **Creation**: [Resources](mechanism/resources.md) and [Tasks](mechanism/tasks.md). **Update**: [Entities](mechanism/entities.md) queue everything they send, and async work answers by `OutboundMessage` mail; [Tools](mechanism/tools.md) gain `$async`, task support and the eight capability tools. The wire `Resource`/`ResourceTemplate` are renamed `ResourceDefinition`/`ResourceTemplateDefinition`.
+* **Update**: [Prompts](mechanism/prompts.md): `completion/complete` for prompt arguments in all five versions, with `CompletionResult`, `Prompt::complete()` and the `CompleteRequest` accessors.
+* **Creation**: [Prompts](mechanism/prompts.md): the wire `Prompt` is renamed `PromptDefinition`; `#[PromptCall]`, the `Prompt` contract and abstract, `PromptRegistry`, `DiscoverPrompts`, `name()`/`arguments()` on every `GetPromptRequest`, and `prompts/list` and `prompts/get` for all five versions.
+* **Update**: [Tools](mechanism/tools.md): `tools/call` for all five versions, and `name()`/`arguments()` on every `CallToolRequest`. The core capability tools have unique names.
+* **Creation**: [Tools](mechanism/tools.md): `ToolRegistry`, `DiscoverTools`, `Tool::inputSchema()` from the constructor, `Paginator`, `cursor()` on every paginated request, and `tools/list` for all five versions.
+* **Creation**: [Entities](mechanism/entities.md): `Entity::receiveMessage()` hydrates in the session version, dispatches requests and returns the JSON-RPC response to send; notifications and responses are never answered. `MCPClient` now takes its protocol version, and `setActiveProtocolVersion()` is gone.
+* **Update**: The wire `Tool` contract and the five `Schema\V*\Capabilities\Tools\Tool` classes are renamed `ToolDefinition`. New `Contracts\Mechanism\Tool` interface and `Mechanism\Tool` abstract: a tool takes its name and description from `#[ToolCall]`. The core capability tools extend it.
+* **Update**: [Message decoding](mechanism/message-decoding.md): every `DecodedMessage` has `id()`; a notification returns null.
+* **Update**: [Procedure routing](mechanism/procedure-routing.md): `logging/setLevel` stores its level on the server configuration (`logLevel()`, `setLogLevel()`), and every `SetLevelRequest` has `level()`.
+* **Update**: [Procedure routing](mechanism/procedure-routing.md): `PingProcedure` answers ping with an empty result on 2024-11-05 to 2025-11-25.
+* **Update**: [Message decoding](mechanism/message-decoding.md): `MessageHydrator::hydrateAs()` hydrates a message as the negotiated protocol version only.
+* **Update**: [Capabilities](mechanism/capabilities.md): `ClientConfiguration::initializeRequest()` and `ServerConfiguration::initializeResult()` build each handshake version's concrete initialize message. `handshakeProtocolVersion()` picks the requested version if both the configuration and the app support it, and otherwise the newest they do, never 2026-07-28.
+* **Creation**: [Message decoding](mechanism/message-decoding.md): `MessageHydrator` turns a decoded message into the schema class of whichever version it fits, newest first, or an `MCPError` naming the member or method at fault; one hand-written hydrator per version under `Mechanism/Hydration`, with `Wire` for typed member reads and `NotThisVersion` for a message another version owns. `EntityRegistry::get()` returns the configuration, not an entity.
 
-## 2026-10-28 (2025-11-25)
+## 2026-11-01
 
-* **URL elicitation (SEP-1036)**: `Elicitation::askUrl()`, `ElicitationCompleteNotification` (sent only to a session whose client declared URL mode), `UrlElicitationRequired` answered as `-32042` from `tools/call`, `resources/read` and `prompts/get`; `Capabilities::elicitationModes()` reads `form`/`url`, an empty object still meaning form; the client's `onElicitUrl()` and `onElicitationComplete()` ([elicitation](mechanism/elicitation.md), [errors](protocol/errors.md)).
-* **Protocol 2025-11-25 added**, the three earlier versions kept: `supported_mcp_versions` lists it first, so negotiation picks it and `MCPClient` proposes it ([messages](protocol/messages.md), [config](reference/config.md)).
-* **Icons (SEP-973)**: `NutsAndBolts\Icon` and an `icons` argument on `ToolDefinition`, `ResourceDefinition`, `ResourceTemplateDefinition` and `PromptDefinition`, and in a server's `$entity_info` beside `description` and `websiteUrl`. Sent as declared, checked when built ([definitions](server/definitions.md)).
-* **Tool names (SEP-986)**: `ToolDefinition` throws unless the name is 1 to 128 characters of `A-Z a-z 0-9 _ - .`, at every protocol version ([definitions](server/definitions.md)).
-* **Elicitation forms (SEP-1330, SEP-1034)**: `default` on string, number, integer, boolean and every enum form, checked against the field's own constraints; titled single-select (`oneOf`); untitled and titled multi-select (`ArrayProperty` with `min_items`, `max_items`, `default`); legacy `enumNames` kept. An answer's content may hold a list of strings, and the answer check verifies each value and the item count ([elicitation](mechanism/elicitation.md)).
-* **Bad tool arguments (SEP-1303)**: from 2025-11-25 a missing or unknown argument is a `CallToolResponse` with `isError` and the problem as text; older sessions keep `InvalidParams`, and an unknown tool stays a protocol error ([definitions](server/definitions.md)).
-
-## 2026-10-28 (0.11.0)
-
-* **Package renamed** `superconductor/mcp` to `superconductor/core`; the transport packages are `superconductor/stdio` and, planned, `superconductor/web` (built on venusian/serve). The 0.10 `semiconductor/*` names are retired.
-* **Entities**: `MCPMechanism` and `Contracts\Mechanism\Mechanism` became `Mechanism\MCPEntity` and `Contracts\Mechanism\MCPEntity` ([roles](architecture/roles.md)).
-* **Contracts**: `Contracts\Server\MCPServer` and `Contracts\Client\MCPClient` added. Code outside the two classes, and the container id the stdio sketch registers, name the contracts; `MCPServer` is abstract and implements its contract, `MCPClient` implements its own ([roles](architecture/roles.md)).
-* **Providers flattened**: `Server\ServerServiceProvider` and `Client\ClientServiceProvider` replace the `Providers/` folders ([transports](architecture/transports.md)).
-* **Versions**: root and split manifests `^0.11.0` / `0.11.x-dev`, `MCPClient::VERSION` `0.11.0`, PHP `~8.4.27||^8.5.12`; `venusian/framework ^0.11.0` joins require-dev because the code calls `config()` and `app()`. No wire or behaviour change; the protocol line is unchanged (2025-06-18, 2025-03-26, 2024-11-05).
-* **Contracts name only Contracts and Voyager types**: `ClientStatus` moved to `Contracts\Client\ClientStatus` and `LogLevel` to `Contracts\NutsAndBolts\LogLevel`. `Contracts\Client\MCPClient` lost `receive()`, `connectionClosed()`, `fill()`, `filled()`, `handshakeDone()` and `fail()` (the start node, the test connection and stdio's `StdioConnection` hold the concrete client) and gained `listResources()`, `listResourceTemplates()`, `readResource()`, `getPrompt()`, `serverCapabilities()`, `protocolVersion()` and `resourceTemplates()`. The `Contracts` split requires `venusian-voyager/contracts ^0.11.0`. `Contracts\NutsAndBolts\MCPNotification` (an `RPCMessage` with a `method` property and `toJson()`) is new, and `MCPServerBag::wants()` and the session flush take it, so a contract-only notification is sent; `NutsAndBolts\Messages\MCPNotification` implements it, and `Contracts\Server\MCPServer::notify()` and the server's `notify()` and `advertises()` take it, so no `Contracts` file imports a `Fabricate\NutsAndBolts`, `Client`, `Server` or `Mechanism` class ([roles](architecture/roles.md)).
-* **`make:mcp-server`**: writes a server stub under the discovery namespace; `stubs/mcp-server.stub`, `MakeServerCommand`, bound by the core provider ([definitions](server/definitions.md), [config](reference/config.md)).
-* **Removed** the empty `Core\Commands\MakeClientCommand`: clients are spawned by `ClientManager` from `mcp_servers`, so no `make:mcp-client` is planned.
-* **Removed** `client.stream_reconnects` from `config/mcp.php` ([config](reference/config.md)): it belonged to an HTTP client that is not planned; superconductor/web serves, it does not consume.
-* Pest suite: 68 tests, 327 assertions.
-
-## 2026-10-27 (2025-06-18)
-
-* **Protocol 2025-06-18 added**, both earlier versions kept. The server records the negotiated version on its bag ([messages](protocol/messages.md)).
-* **Batches by version**: `LineDecoder::isBatch()`, `SessionBag::takesBatches()`; a 2025-06-18 session's batch is refused whole ([session](mechanism/session.md)).
-* **Capability gate** on both sides: `Capabilities` ([session](mechanism/session.md), [client](client/client.md)).
-* **Elicitation**, server and client, with a complete check of the 2025-06-18 schema subset ([elicitation](mechanism/elicitation.md)).
-* **Structured output**, **resource links**, **content annotations**, **`title`**, **`_meta`**, **completion context** ([messages](protocol/messages.md)).
-* **Initialize capabilities encoded as objects at every depth**: `"elicitation": []` was refused by a Go server.
-* Pest suite: 62 tests, 302 assertions. Proven with the TypeScript SDK 1.22.0 client (2025-06-18, elicitation handler) over stdio and Streamable HTTP, and against neo4j-mcp 1.5.3.
-* **Schemas are primitives**: `SchemaProperty` contract; `NumberProperty`, `IntegerProperty`, `BooleanProperty`, `EnumProperty`, `ArrayProperty`, `ObjectSchema` beside `StringProperty`. Tool inputs, output schemas and elicitation forms use them; the array checker is gone ([definitions](server/definitions.md)).
-* **Client content is typed**: `CallToolResponse`, `ReadResourceResponse`, `GetPromptResponse` hold only primitives; `fromReceived()` reads wire content through `Schema\Content` and `PromptMessage::fromArray()` ([client](client/client.md)).
-
-## 2026-10-26 (2025-03-26)
-
-* **`Mechanism\Session`**: the server-side session logic lifted out of semiconductor/stdio so the HTTP transport runs the same node ([session](mechanism/session.md)). `SessionBag`, the three lifecycle states and the two notification actions moved here; stdio's bag and node now extend and delegate.
-* **Protocol 2025-03-26 added**, 2024-11-05 kept: `supported_mcp_versions` lists both ([messages](protocol/messages.md)).
-* **JSON-RPC batches received**: `LineDecoder::decode()` returns a list per line; every transport calls it. Batches are never sent.
-* **Tool annotations** (`ToolAnnotations`), **audio content** (`AudioProperty`), **progress `message`**, **`completions` capability** ([messages](protocol/messages.md)).
-* **Ready guarded by the client's own flag**, not the promise's lagging one ([client](client/client.md)).
-* `venusian-voyager/config` in require-dev: the suites build a config repository by hand.
-* Pest suite: 44 tests, 182 assertions. Proven against the TypeScript SDK's `StreamableHTTPServerTransport` and a production Streamable HTTP server through semiconductor/sse.
-
-## 2026-10-26
-
-* **Client over stdio**: `ClientManager`, `MCPClient`, `ClientBag`, `ClientStartNode`, the `Connection` contract; requests gained `toJson()`, responses `fromReceived()`, the decoder the server-to-client notifications ([client](client/client.md), [messages](protocol/messages.md)). Proven against the dev app's concept server and neo4j-mcp 1.5.3.
-* **Two id ledgers per side** replace the server's shared ledger; server pings back on ([ids](protocol/ids.md)).
-* **Decoder errors keep their id and code** on the way out; unknown notifications are never answered; every method message must carry `jsonrpc: "2.0"` ([errors](protocol/errors.md), [messages](protocol/messages.md)).
-* **`Procedure::ASYNC`**: tool calls, resource reads, prompt gets and completion run in a loop fiber; cancellation and pings work mid-flight ([procedures](mechanism/procedures.md)).
-* **Caches hold every page**; the handshake moved out of promise callbacks into the node ([client](client/client.md)).
-* Pest suite: 39 tests, 159 assertions. Split manifests filled; README, SECURITY, AGENTS, CLAUDE, CI added.
-
-## 2026-10-25
-
-* Server side of 2024-11-05 complete over stdio: lifecycle, tools, resources, templates, subscriptions, prompts, completion, logging, pagination, progress, cancellation, list_changed, server pings.
+* **Update**: [Procedure routing](mechanism/procedure-routing.md): the response check also covers which result each method can answer with, and when a `CreateTaskResult` is allowed. Exceptions in a procedure become the version's `MCPError`, except `CancelledException`. Every refusal has an RPC code, an unsupported version is checked first, and a request from another version's schema is refused. `dispatch` unwraps the first three versions' envelopes. Added the `EmptyResult` and `JSONRPCEnvelope` contracts and `supportedProtocolVersions()`.
+* **Update**: [Procedure routing](mechanism/procedure-routing.md): `dispatch` checks a procedure's answer against the protocol version and returns that version's `MCPError` if it doesn't belong. Added `Messaging/MCPError` to 2024-11-05, 2025-03-26 and 2025-06-18, whose schemas define the error inline.
+* **Update**: [Procedure routing](mechanism/procedure-routing.md): the router passes `$protocol_version` to every procedure method. `tools/call`, `prompts/get`, `resources/read`, `sampling/createMessage` and `elicitation/create` declare union returns with the new `CreateTaskResult` and `InputRequiredResult` contracts, and `DiscoverProcedure` returns `DiscoverResult`.
+* **Creation**: [Procedure routing](mechanism/procedure-routing.md): `ProcedureRouter`, its static facade, routes for every client and server request except `initialize`, stub procedures for all of them, and `#[RequiresCapability]`. The provider loads the app's `routes/mcp.php` or the package's, and publishes under `mcp-routes`. Added Tasks and `subscriptions/listen` contracts, and `$method` on the `Request` contract.
+* **Creation**: [Capabilities](mechanism/capabilities.md): `capabilities($protocol_version)` builds the version's object through its constructor, replacing the empty `hydrateCapabilitiesObject()` branches. 2026-07-28 changes to match: `ServerCapabilities` takes `extensions` and `experimental` as arrays, and `ClientCapabilities` takes `support_elicitation_forms` and `support_elicitation_urls` as bools. `ClientConfiguration::$roots` is `bool|array`, so `listChanged` can be declared. Added `SuperconductorMCPServiceProvider`, because nothing merged `config/mcp.php`. Tests: 25 cases covering all five versions for both entities, with 20 real configurations validated against `schema.json`.
+* **Initialization**: Started this bundle and the package's local git repository, with [Package](orientation/package.md), [Schema](schema/component.md), [Schema versions](schema/versions.md) and [Contracts](contracts/component.md).
+* **Creation**: [Schema](schema/component.md) finished for 2024-11-05, 2025-03-26, 2025-06-18, 2025-11-25 and 2026-07-28, and `Schema/Reference` deleted. `Messaging/RPCMessage`, `Messaging/MCPMessage` and `Core/Procedures/MCPProcedure` removed.
