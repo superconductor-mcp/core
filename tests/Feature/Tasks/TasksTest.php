@@ -165,6 +165,19 @@ it('refuses tasks for a tool that forbids them and plain calls for one that requ
         ->and(rpc($server, 3, 'tools/call', ['name' => 'only-task', 'task' => []])['result']['task']['status'])->toBe('completed');
 });
 
+it('lists and finds only the tasks of whoever asks, as the transport authenticated them.', function () {
+    $configuration = taskingServer();
+    $alice = new MCPServer($configuration, '2025-11-25', auth_identifier: 'alice');
+    $bob = new MCPServer($configuration, '2025-11-25', auth_identifier: 'bob');
+
+    $task_id = rpc($alice, 1, 'tools/call', ['name' => 'only-task', 'task' => []])['result']['task']['taskId'];
+
+    expect(array_column(rpc($alice, 2, 'tasks/list')['result']['tasks'], 'taskId'))->toBe([$task_id])
+        ->and(rpc($bob, 3, 'tasks/list')['result']['tasks'])->toBe([])
+        ->and(rpc($bob, 4, 'tasks/get', ['taskId' => $task_id])['error']['code'])->toBe(-32602)
+        ->and(rpc($bob, 5, 'tasks/cancel', ['taskId' => $task_id])['error']['code'])->toBe(-32602);
+});
+
 it('refuses an unknown task.', function () {
     expect(rpc(new MCPServer(taskingServer(), '2025-11-25'), 1, 'tasks/get', ['taskId' => 'nope'])['error']['code'])->toBe(-32602);
 });

@@ -4,6 +4,7 @@ namespace Fabricate\Mechanism\Signals;
 
 use Fabricate\Contracts\Schema\LoggingLevel;
 use Fabricate\Contracts\Schema\RequestId;
+use Fabricate\Mechanism\Cancellation;
 
 /**
  * Fired when a tool, prompt or resource logs something while answering a request. The MCPServer of that session sends
@@ -20,5 +21,7 @@ final readonly class LogMessage
         public ?string $logger = null,
         /** On 2026-07-28, the level the request asked for in _meta; null there means it asked for no logging. */
         public ?LoggingLevel $requested_level = null,
+        /** The request's; marked once the message is sent, so the request's answer goes out after it. */
+        public ?Cancellation $cancellation = null,
     ) {}
 }

@@ -50,6 +50,9 @@ class ToolRegistry extends EntityRegistry
             throw new InvalidArgumentException("Tool [{$class}] is named [{$name}]; a tool name is 1 to 128 letters, digits, underscores, hyphens or dots.");
         }
 
+        // Refuses a tool whose x-mcp-header annotations a client would reject, before any client sees it.
+        $class::mirroredHeaders();
+
         $this->tools[$name] = $class;
     }
 }

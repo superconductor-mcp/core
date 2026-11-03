@@ -10,6 +10,7 @@ use Fabricate\Contracts\Schema\Messaging\MCPError;
 use Fabricate\Contracts\Schema\Messaging\Notification;
 use Fabricate\Contracts\Schema\Messaging\Request;
 use Fabricate\Contracts\Schema\Messaging\Result;
+use Fabricate\Contracts\Schema\Messaging\Tasks\CreateTaskResult;
 use Fabricate\Contracts\Schema\Messaging\RPC\JSONRPCMessage;
 use Fabricate\Contracts\Schema\LoggingLevel;
 use Fabricate\Contracts\Schema\ProgressToken;
@@ -40,6 +41,8 @@ abstract class Entity implements EntityContract
         public readonly EntityConfiguration $configuration,
         public readonly string $active_protocol_version,
         ?string $session_id = null,
+        /** Who sent the messages, as the transport authenticated them; null when it didn't. Tasks belong to it. */
+        public readonly ?string $auth_identifier = null,
     ) {
         $this->session_id = $session_id ?? (string) Str::uuid();
     }
@@ -79,8 +82,9 @@ abstract class Entity implements EntityContract
     abstract public function receiveResponse(Result|MCPError $response): void;
 
     /**
-     * Handles one message from the peer. A request comes back as the JSON-RPC response to send;
-     * notifications and responses are never answered, so they come back as null.
+     * Handles one message from the peer. A request comes back as the JSON-RPC response to send, unless its answer comes
+     * as mail: answered later, or after notifications it sent. Notifications and responses are never answered, so
+     * they come back as null.
      */
     public function receiveMessage(DecodedMessage $message): ?JSONRPCMessage
     {
@@ -90,7 +94,7 @@ abstract class Entity implements EntityContract
         {
             $token = $message->params['_meta']['progressToken'] ?? null;
             $log_level = $message->params['_meta']['io.modelcontextprotocol/logLevel'] ?? null;
-            $context = new RequestContext($this->session_id, $message->id(), $this->active_protocol_version, is_string($token) || is_int($token) ? new ProgressToken($token) : null, log_level: is_string($log_level) ? LoggingLevel::tryFrom($log_level) : null, client_capabilities: (array) ($message->params['_meta']['io.modelcontextprotocol/clientCapabilities'] ?? []));
+            $context = new RequestContext($this->session_id, $message->id(), $this->active_protocol_version, is_string($token) || is_int($token) ? new ProgressToken($token) : null, log_level: is_string($log_level) ? LoggingLevel::tryFrom($log_level) : null, client_capabilities: (array) ($message->params['_meta']['io.modelcontextprotocol/clientCapabilities'] ?? []), auth_identifier: $this->auth_identifier);
             $answer = $reconciled instanceof Request ? $this->receiveRequest($reconciled, $context) : $reconciled;
 
             // An async answer arrives later as mail, so nothing is sent for the request now; until then it can be cancelled.
@@ -98,6 +102,15 @@ abstract class Entity implements EntityContract
             {
                 $this->answering = array_filter($this->answering, fn(Cancellation $cancellation) => ! $cancellation->answered);
                 $this->answering[json_encode($message->id()->id)] = $context->cancellation;
+
+                return null;
+            }
+
+            // Log and progress notifications sent while answering went out as mail; the answer follows them the same way,
+            // never ahead. A task's handle is the exception: what its work sends is about the task, so the handle goes first.
+            if($context->cancellation->notified && ! $answer instanceof CreateTaskResult)
+            {
+                $context->reply($answer);
 
                 return null;
             }

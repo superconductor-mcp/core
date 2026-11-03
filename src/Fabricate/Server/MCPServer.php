@@ -46,8 +46,9 @@ class MCPServer extends Entity implements Server
         ServerConfiguration $configuration,
         string $active_protocol_version,
         ?string $session_id = null,
+        ?string $auth_identifier = null,
     ) {
-        parent::__construct($configuration, $active_protocol_version, $session_id);
+        parent::__construct($configuration, $active_protocol_version, $session_id, $auth_identifier);
 
         $this->listenForChanges();
     }
@@ -57,10 +58,14 @@ class MCPServer extends Entity implements Server
      */
     public function close(): void
     {
-        // A server ending a subscription cancels its listen request, the one use 2026-07-28 allows a server cancel for.
+        // A server ending a subscription cancels its listen request, the one use 2026-07-28 allows a server cancel for,
+        // then answers it with a complete result, which tells the client the subscription ended gracefully.
         foreach($this->subscriptions as $subscription) {
             $id = $subscription->context->id;
             $subscription->context->notify(new V20260728\Messaging\Cancellation\CancelledNotification(new V20260728\Messaging\Params\CancelledNotificationParams($id, 'The server is closing.', new NotificationMetaObject($id))));
+            $subscription->context->reply(new V20260728\Messaging\Resources\SubscriptionsListenResult(new V20260728\Messaging\MetaObjects\SubscriptionsListenResultMetaObject(
+                $id, $this->configuration->identifiesItself() ? $this->configuration->implementation($this->active_protocol_version) : null,
+            )));
         }
 
         $this->subscriptions = [];
@@ -156,6 +161,7 @@ class MCPServer extends Entity implements Server
             ? new ($this->schema('Messaging\\Logging\\LoggingMessageNotification'))(new ($this->schema('Messaging\\Params\\LoggingMessageNotificationParams'))($signal->level, $signal->data, $signal->logger))
             : new ($this->schema('Messaging\\Logging\\LoggingMessageNotification'))($signal->level, $signal->data, $signal->logger);
 
+        $signal->cancellation?->notify();
         app(Loop::class)->post(new OutboundMessage($this->session_id, $this->active_protocol_version, $notification, related_request: $signal->request));
     }
 
@@ -233,14 +239,18 @@ class MCPServer extends Entity implements Server
     }
 
     /**
-     * Refuses a repeated initialize before hydrating it: an initialize naming another version would otherwise fail as an unsupported version.
+     * Refuses initialize before hydrating it: a repeat in a session, or any on 2026-07-28. An initialize naming another
+     * version would otherwise fail as an unsupported version.
      */
     public function receiveMessage(DecodedMessage $message): ?JSONRPCMessage
     {
-        // 2026-07-28 has no initialize, so the router answers it as an unknown method.
-        if($message instanceof DecodedRequest && $message->method === 'initialize' && $this->active_protocol_version !== '2026-07-28')
+        if($message instanceof DecodedRequest && $message->method === 'initialize')
         {
-            return $this->encodeMessage($message->id(), new SessionError(RPCErrorCode::INVALID_REQUEST->value, 'Session already initialized: [initialize] can only be sent once.'));
+            // 2026-07-28 has no initialize: an unknown method, named with the versions served here, since a client that
+            // sends it may have nothing else to show its user.
+            return $this->encodeMessage($message->id(), $this->active_protocol_version === '2026-07-28'
+                ? new SessionError(RPCErrorCode::METHOD_NOT_FOUND->value, 'Method not found: [initialize] is not part of 2026-07-28, which this server speaks here without it.', ['supported' => ['2026-07-28']])
+                : new SessionError(RPCErrorCode::INVALID_REQUEST->value, 'Session already initialized: [initialize] can only be sent once.'));
         }
 
         return parent::receiveMessage($message);
@@ -262,10 +272,17 @@ class MCPServer extends Entity implements Server
         $request_id = $notification->toArray()['params']['requestId'] ?? null;
 
         // 2025-11-25 lets requestId be left out, for tasks, which tasks/cancel stops instead.
-        if(is_string($request_id) || is_int($request_id)) {
-            $this->cancel(new RequestId($request_id));
-            unset($this->subscriptions[json_encode($request_id)]);
-        }
+        if(is_string($request_id) || is_int($request_id)) $this->cancel(new RequestId($request_id));
+    }
+
+    /**
+     * Cancels a request whose answer is still coming. A subscriptions/listen request is the client ending that
+     * subscription: nothing more goes out on it, and closing the server doesn't end it again.
+     */
+    public function cancel(RequestId $request): void
+    {
+        parent::cancel($request);
+        unset($this->subscriptions[json_encode($request->id)]);
     }
 
     public function receiveResponse(Result|MCPError $response): void

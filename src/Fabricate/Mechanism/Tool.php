@@ -99,6 +99,43 @@ abstract class Tool implements ToolContract
         return ['properties' => $properties, 'required' => $required];
     }
 
+    /**
+     * The arguments a Streamable HTTP call mirrors into Mcp-Param-{header} headers: each header name by argument name.
+     * A header name is an HTTP token, unique among the tool's ignoring case, on an int, string or bool argument.
+     *
+     * @return array<string, string>
+     */
+    public static function mirroredHeaders(): array
+    {
+        $headers = [];
+
+        foreach(new ReflectionClass(static::class)->getConstructor()?->getParameters() ?? [] as $parameter)
+        {
+            $header = ($parameter->getAttributes(Argument::class)[0] ?? null)?->newInstance()->header;
+
+            if(is_null($header)) continue;
+
+            $type = $parameter->getType();
+            $where = static::class." argument [{$parameter->getName()}]";
+
+            if(! preg_match("/^[!#$%&'*+\\-.^_`|~0-9A-Za-z]+$/", $header)) {
+                throw new MCPMechanismException("{$where} names header [{$header}]; a header name is one or more HTTP token characters.");
+            }
+
+            if(! $type instanceof ReflectionNamedType || ! in_array($type->getName(), ['int', 'string', 'bool'], true)) {
+                throw new MCPMechanismException("{$where} names header [{$header}]; only int, string and bool arguments are mirrored into headers.");
+            }
+
+            if(in_array(strtolower($header), array_map(strtolower(...), $headers), true)) {
+                throw new MCPMechanismException("{$where} names header [{$header}], which another argument already names.");
+            }
+
+            $headers[$parameter->getName()] = $header;
+        }
+
+        return $headers;
+    }
+
     protected static function listCapability(): string
     {
         return ListChanged::TOOLS;

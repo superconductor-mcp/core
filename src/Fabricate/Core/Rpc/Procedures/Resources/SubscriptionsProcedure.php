@@ -47,7 +47,7 @@ class SubscriptionsProcedure extends Procedure
             $asked->promptsListChanged && $entity_configuration->announcesListChanges(ListChanged::PROMPTS) ? true : null,
             $asked->resourcesListChanged && $entity_configuration->announcesListChanges(ListChanged::RESOURCES) ? true : null,
             $asked->resourceSubscriptions && ($entity_configuration->resourcesConfig()['subscribe'] ?? false) ? array_values($asked->resourceSubscriptions) : null,
-            $this->knownTasks($asked->taskIds ?? [], $entity_configuration) ?: null,
+            $this->knownTasks($asked->taskIds ?? [], $entity_configuration, $context) ?: null,
         );
 
         $context->notify(new SubscriptionsAcknowledgedNotification(new SubscriptionsAcknowledgedNotificationParams($agreed, new NotificationMetaObject($context->id))));
@@ -57,15 +57,15 @@ class SubscriptionsProcedure extends Procedure
     }
 
     /**
-     * Of the task ids a subscription asks about, those of tasks this server runs and still has.
+     * Of the task ids a subscription asks about, those of tasks this server runs, still has, and created for whoever asks.
      *
      * @param list<string> $ids
      * @return list<string>
      */
-    private function knownTasks(array $ids, ServerConfiguration $entity_configuration): array
+    private function knownTasks(array $ids, ServerConfiguration $entity_configuration, RequestContext $context): array
     {
         if(! $entity_configuration instanceof ServerConfigurationBase || ! ($entity_configuration->tasksConfig()['requests']['tools']['call'] ?? false)) return [];
 
-        return array_values(array_filter($ids, fn(mixed $id) => is_string($id) && $entity_configuration->taskStore()->find($id)));
+        return array_values(array_filter($ids, fn(mixed $id) => is_string($id) && $entity_configuration->taskStore()->find($id, $context->auth_identifier)));
     }
 }

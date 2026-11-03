@@ -28,4 +28,11 @@ interface Tool
      * @return list<\Fabricate\Contracts\Mechanism\Attributes\Icon>
      */
     public static function icons(): array;
+
+    /**
+     * The arguments a 2026-07-28 Streamable HTTP call mirrors into Mcp-Param-{header} headers: each header by argument.
+     *
+     * @return array<string, string>
+     */
+    public static function mirroredHeaders(): array;
 }

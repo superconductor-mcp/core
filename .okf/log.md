@@ -2,6 +2,8 @@
 
 ## 2026-11-03
 
+* **Update**: [Stateless servers](mechanism/stateless.md): a request's answer goes out as mail behind the log and progress notifications it sent, in every version, so it can't overtake them; a closing server answers each open subscription with a `complete` result after cancelling it; `cancel()` ends a subscription; the 2026-07-28 `initialize` refusal names the version served; `#[Argument(header:)]` and `x-mcp-header`.
+* **Update**: [Tasks](mechanism/tasks.md): tasks belong to the `auth_identifier` that created them; every task call, subscription task id and `tasks/list` sees only the caller's.
 * **Update**: [Tools](mechanism/tools.md), [Prompts](mechanism/prompts.md), [Resources](mechanism/resources.md): 2026-07-28 definitions carry titles, annotations, icons, argument docs and output schemas like 2025-11-25's.
 * **Creation**: [Stateless servers](mechanism/stateless.md): 2026-07-28 per-request _meta checks, server/discover, serverInfo on results, version errors, per-request logging, progress, multi round-trip requests with sealed requestState, and subscriptions/listen. **Update**: [Tasks](mechanism/tasks.md): the 2026-07-28 tasks extension.
 

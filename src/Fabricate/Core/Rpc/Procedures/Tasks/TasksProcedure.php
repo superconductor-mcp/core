@@ -46,10 +46,10 @@ class TasksProcedure extends Procedure
         if($protocol_version === '2026-07-28') {
             $this->extensionNegotiated($entity_configuration, $context);
 
-            return new V20260728\Messaging\Tasks\GetTaskResult($this->task($request->taskId(), $entity_configuration)->toDetailed(), $this->resultMeta($entity_configuration, $protocol_version));
+            return new V20260728\Messaging\Tasks\GetTaskResult($this->task($request->taskId(), $entity_configuration, $context)->toDetailed(), $this->resultMeta($entity_configuration, $protocol_version));
         }
 
-        return new Tasks\GetTaskResult($this->task($request->taskId(), $entity_configuration)->toSchema());
+        return new Tasks\GetTaskResult($this->task($request->taskId(), $entity_configuration, $context)->toSchema());
     }
 
     /**
@@ -61,7 +61,7 @@ class TasksProcedure extends Procedure
     {
         $this->extensionNegotiated($entity_configuration, $context);
 
-        $this->task($request->taskId(), $entity_configuration)->supply($request->inputResponses());
+        $this->task($request->taskId(), $entity_configuration, $context)->supply($request->inputResponses());
 
         return new V20260728\Messaging\EmptyResult(_meta: $this->resultMeta($entity_configuration, $protocol_version));
     }
@@ -72,7 +72,7 @@ class TasksProcedure extends Procedure
      */
     public function result(GetTaskPayloadRequest $request, EntityConfiguration $entity_configuration, string $protocol_version, ?RequestContext $context = null): GetTaskPayloadResult|Deferred
     {
-        $task = $this->task($request->taskId(), $entity_configuration);
+        $task = $this->task($request->taskId(), $entity_configuration, $context);
 
         if($task->terminal()) {
             $outcome = $this->outcome($task);
@@ -96,9 +96,10 @@ class TasksProcedure extends Procedure
     }
 
     #[RequiresCapability('tasks.list')]
-    public function list(ListTasksRequest $request, EntityConfiguration $entity_configuration, string $protocol_version): ListTasksResult
+    public function list(ListTasksRequest $request, EntityConfiguration $entity_configuration, string $protocol_version, ?RequestContext $context = null): ListTasksResult
     {
-        [$tasks, $next_cursor] = Paginator::page($this->store($entity_configuration)?->all() ?? [], $request->cursor(), (int) config('mcp.pagination.page_size', 50));
+        $own = array_values(array_filter($this->store($entity_configuration)?->all() ?? [], fn(TaskRecord $task) => $task->auth_identifier === $context?->auth_identifier));
+        [$tasks, $next_cursor] = Paginator::page($own, $request->cursor(), (int) config('mcp.pagination.page_size', 50));
 
         return new Tasks\ListTasksResult(array_map(fn(TaskRecord $task) => $task->toSchema(), $tasks), $next_cursor);
     }
@@ -111,8 +112,8 @@ class TasksProcedure extends Procedure
     public function cancel(CancelTaskRequest $request, EntityConfiguration $entity_configuration, string $protocol_version, ?RequestContext $context = null): CancelTaskResult|EmptyResult
     {
         $task = $protocol_version === '2026-07-28'
-            ? ($this->extensionNegotiated($entity_configuration, $context) ?? $this->task($request->taskId(), $entity_configuration))
-            : $this->task($request->taskId(), $entity_configuration);
+            ? ($this->extensionNegotiated($entity_configuration, $context) ?? $this->task($request->taskId(), $entity_configuration, $context))
+            : $this->task($request->taskId(), $entity_configuration, $context);
 
         // 2026-07-28 only asks for an acknowledgement; a task that already ended stays as it is.
         if($protocol_version === '2026-07-28') {
@@ -148,9 +149,9 @@ class TasksProcedure extends Procedure
         return null;
     }
 
-    private function task(string $id, EntityConfiguration $entity_configuration): TaskRecord
+    private function task(string $id, EntityConfiguration $entity_configuration, ?RequestContext $context): TaskRecord
     {
-        return $this->store($entity_configuration)?->find($id)
+        return $this->store($entity_configuration)?->find($id, $context?->auth_identifier)
             ?? throw new SuperconductorMCPException("Task not found: [{$id}].", RPCErrorCode::INVALID_PARAMS->value);
     }
 

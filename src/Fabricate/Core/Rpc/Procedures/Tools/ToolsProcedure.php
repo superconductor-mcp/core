@@ -122,7 +122,7 @@ class ToolsProcedure extends Procedure
 
         if($as_task)
         {
-            $task = $entity_configuration->taskStore()->create($request->taskTtl());
+            $task = $entity_configuration->taskStore()->create($request->taskTtl(), $context?->auth_identifier);
 
             $this->run($tool, $entity_configuration, $protocol_version, $context, $named, new Completion($build, $fail, function(CallToolResult $result) use ($task, $context) {
                 $task->settle($result);
@@ -205,7 +205,7 @@ class ToolsProcedure extends Procedure
     private function runModernTask(Tool $tool, string $name, string $class, ServerConfiguration $entity_configuration, ?RequestContext $context, array $named, ?ResultMetaObject $meta): V20260728\Messaging\Tasks\CreateTaskResult|InputRequiredResult
     {
         $store = $entity_configuration->taskStore();
-        $task = $store->create();
+        $task = $store->create(auth_identifier: $context?->auth_identifier);
         $attempt = null;
 
         $settle = function(CallToolResult|InputRequired $outcome) use (&$attempt, $task, $name, $context, $entity_configuration): void {
@@ -288,7 +288,8 @@ class ToolsProcedure extends Procedure
 
     /**
      * A tool as the requested version defines it: its input schema, and from 2025-03-26 its annotations, from
-     * 2025-06-18 its title and output schema, from 2025-11-25 its icons, and on 2025-11-25 whether it runs as a task.
+     * 2025-06-18 its title and output schema, from 2025-11-25 its icons, on 2025-11-25 whether it runs as a task, and on
+     * 2026-07-28 the headers its arguments are mirrored into.
      *
      * @param class-string<Tool> $tool
      */
@@ -312,10 +313,24 @@ class ToolsProcedure extends Procedure
                 annotations: $annotations, icons: $this->icons($tool), title: $tool::title(),
             ),
             '2026-07-28' => new V20260728\Capabilities\Tools\ToolDefinition(
-                $tool::name(), $tool::description(), ['properties' => $properties, 'required' => $required],
+                $tool::name(), $tool::description(), ['properties' => $this->withHeaders($tool, $properties), 'required' => $required],
                 is_null($output) ? null : ['type' => 'object'] + $output, $annotations, $this->icons($tool), $tool::title(),
             ),
         };
+    }
+
+    /**
+     * The input schema's properties with each mirrored argument's x-mcp-header.
+     *
+     * @param class-string<Tool> $tool
+     * @param array<string, array<string, mixed>> $properties
+     * @return array<string, array<string, mixed>>
+     */
+    private function withHeaders(string $tool, array $properties): array
+    {
+        foreach($tool::mirroredHeaders() as $argument => $header) $properties[$argument]['x-mcp-header'] = $header;
+
+        return $properties;
     }
 
     /**

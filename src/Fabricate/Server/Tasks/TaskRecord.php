@@ -63,6 +63,8 @@ final class TaskRecord
         public readonly int $ttl,
         public readonly int $poll_interval,
         public readonly DateTimeImmutable $created_at = new DateTimeImmutable(),
+        /** Who created the task, as the transport authenticated them; only they reach it. Null when nobody was. */
+        public readonly ?string $auth_identifier = null,
     ) {
         $this->updated_at = $this->created_at;
     }

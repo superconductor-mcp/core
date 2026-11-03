@@ -20,19 +20,25 @@ final class TaskStore
 
     /**
      * @param int|null $ttl The retention the client asked for, in milliseconds; the default when null.
+     * @param string|null $auth_identifier Who the request creating it came from, as the transport authenticated them.
      */
-    public function create(?int $ttl = null): TaskRecord
+    public function create(?int $ttl = null, ?string $auth_identifier = null): TaskRecord
     {
-        $task = new TaskRecord((string) Str::uuid(), $ttl ?? self::DEFAULT_TTL, self::POLL_INTERVAL);
+        $task = new TaskRecord((string) Str::uuid(), $ttl ?? self::DEFAULT_TTL, self::POLL_INTERVAL, auth_identifier: $auth_identifier);
 
         return $this->tasks[$task->id] = $task;
     }
 
-    public function find(string $id): ?TaskRecord
+    /**
+     * The task, if whoever asks is whoever created it; anyone else is told of no such task.
+     */
+    public function find(string $id, ?string $auth_identifier = null): ?TaskRecord
     {
         $this->forgetExpired();
 
-        return $this->tasks[$id] ?? null;
+        $task = $this->tasks[$id] ?? null;
+
+        return $task?->auth_identifier === $auth_identifier ? $task : null;
     }
 
     /**

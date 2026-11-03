@@ -1,6 +1,7 @@
 <?php
 
 use Fabricate\Contracts\Mechanism\Attributes\ServerConfig;
+use Fabricate\Contracts\Mechanism\DecodedMessage;
 use Fabricate\Contracts\Mechanism\Attributes\ToolCall;
 use Fabricate\Contracts\Schema\LoggingLevel;
 use Fabricate\Core\Routing\ProcedureRouter;
@@ -89,9 +90,17 @@ afterEach(fn() => ControlPanel::setInstance(null));
  */
 function modern(MCPServer $server, string $method, array $params = [], array $meta = [], int $id = 1): array
 {
+    return json_decode($server->receiveMessage(modernRequest($method, $params, $meta, $id))->toJson(), true);
+}
+
+/**
+ * @param array<string, mixed> $meta Laid over the required protocol version and client capabilities.
+ */
+function modernRequest(string $method, array $params = [], array $meta = [], int $id = 1): DecodedMessage
+{
     $params['_meta'] = $meta + ['io.modelcontextprotocol/protocolVersion' => '2026-07-28', 'io.modelcontextprotocol/clientCapabilities' => (object) []];
 
-    return json_decode($server->receiveMessage(MessageDecoder::fromWire(json_encode(['jsonrpc' => '2.0', 'id' => $id, 'method' => $method, 'params' => $params])))->toJson(), true);
+    return MessageDecoder::fromWire(json_encode(['jsonrpc' => '2.0', 'id' => $id, 'method' => $method, 'params' => $params]));
 }
 
 it('describes itself on server/discover, uncached, with serverInfo in _meta.', function () {
@@ -126,19 +135,25 @@ it('answers the methods 2026-07-28 removed as unknown.', function (string $metho
 })->with(['initialize', 'ping', 'logging/setLevel', 'resources/subscribe']);
 
 it('logs only for a request that names a level, at or above it.', function () {
-    modern($this->server, 'tools/call', ['name' => 'narrate', 'arguments' => (object) []]);
-    $silent = count($this->mail);
+    $silent = modern($this->server, 'tools/call', ['name' => 'narrate', 'arguments' => (object) []]);
+    $mailed = count($this->mail);
 
-    modern($this->server, 'tools/call', ['name' => 'narrate', 'arguments' => (object) []], ['io.modelcontextprotocol/logLevel' => 'info']);
+    $reply = $this->server->receiveMessage(modernRequest('tools/call', ['name' => 'narrate', 'arguments' => (object) []], ['io.modelcontextprotocol/logLevel' => 'info']));
 
-    expect($silent)->toBe(0)
-        ->and(array_map(fn(OutboundMessage $mail) => $mail->message()->toArray()['params']['data'], $this->mail->getArrayCopy()))->toBe(['careful']);
+    expect($silent['result']['content'][0]['text'])->toBe('told')
+        ->and($mailed)->toBe(0)
+        ->and($reply)->toBeNull()
+        ->and(array_map(fn(OutboundMessage $mail) => $mail->message()->toArray()['params']['data'] ?? $mail->message()->toArray()['result']['content'][0]['text'], $this->mail->getArrayCopy()))->toBe(['careful', 'told']);
 });
 
-it('reports progress for a request with a progress token.', function () {
-    modern($this->server, 'tools/call', ['name' => 'narrate', 'arguments' => (object) []], ['progressToken' => 'p']);
+it('reports progress for a request with a progress token, and sends the answer after it.', function () {
+    $reply = $this->server->receiveMessage(modernRequest('tools/call', ['name' => 'narrate', 'arguments' => (object) []], ['progressToken' => 'p']));
 
-    expect($this->mail[0]->message()->toArray())->toBe(['jsonrpc' => '2.0', 'method' => 'notifications/progress', 'params' => ['progressToken' => 'p', 'progress' => 1, 'total' => 1, 'message' => 'done']]);
+    expect($reply)->toBeNull()
+        ->and($this->mail[0]->message()->toArray())->toBe(['jsonrpc' => '2.0', 'method' => 'notifications/progress', 'params' => ['progressToken' => 'p', 'progress' => 1, 'total' => 1, 'message' => 'done']])
+        ->and($this->mail[1]->message()->toArray()['id'])->toBe(1)
+        ->and($this->mail[1]->message()->toArray()['result']['content'][0]['text'])->toBe('told')
+        ->and($this->mail)->toHaveCount(2);
 });
 
 it('asks for input with InputRequiredResult, then answers the retry with its verified state.', function () {
@@ -233,7 +248,7 @@ it('sends a subscription only what it agreed to, each marked with its subscripti
     ]);
 });
 
-it('stops a subscription the client cancels, and cancels the ones still open when the server closes.', function () {
+it('stops a subscription the client cancels, and cancels then answers the ones still open when the server closes.', function () {
     $server = listening();
     foreach([1, 2] as $id) {
         $server->receiveMessage(MessageDecoder::fromWire(json_encode(['jsonrpc' => '2.0', 'id' => $id, 'method' => 'subscriptions/listen', 'params' => [
@@ -248,8 +263,13 @@ it('stops a subscription the client cancels, and cancels the ones still open whe
     ConfirmTool::listChanged();
     $server->close();
 
-    expect(array_map(fn(array $message) => [$message['method'], $message['params']['_meta']['io.modelcontextprotocol/subscriptionId']], wireMail($this->mail)))->toBe([
+    $sent = wireMail($this->mail);
+
+    expect(array_map(fn(array $message) => [$message['method'], $message['params']['_meta']['io.modelcontextprotocol/subscriptionId']], array_slice($sent, 0, 2)))->toBe([
         ['notifications/tools/list_changed', 2],
         ['notifications/cancelled', 2],
-    ]);
+    ])->and($sent[2]['id'])->toBe(2)
+        ->and($sent[2]['result']['resultType'])->toBe('complete')
+        ->and($sent[2]['result']['_meta']['io.modelcontextprotocol/subscriptionId'])->toBe(2)
+        ->and($sent)->toHaveCount(3);
 });

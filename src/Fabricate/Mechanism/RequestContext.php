@@ -35,6 +35,8 @@ final readonly class RequestContext
         public ?LoggingLevel $log_level = null,
         /** On 2026-07-28, the client capabilities the request declared in _meta, as sent. */
         public array $client_capabilities = [],
+        /** Who sent the request, as the transport authenticated it; null when it didn't. */
+        public ?string $auth_identifier = null,
     ) {}
 
     /**
@@ -51,7 +53,7 @@ final readonly class RequestContext
      */
     public function log(LoggingLevel $level, mixed $data, ?string $logger = null): void
     {
-        if(! $this->cancelled()) signal(new LogMessage($this->session_id, $this->id, $level, $data, $logger, $this->log_level));
+        if(! $this->cancelled()) signal(new LogMessage($this->session_id, $this->id, $level, $data, $logger, $this->log_level, $this->cancellation));
     }
 
     /**
@@ -60,8 +62,9 @@ final readonly class RequestContext
      */
     public function progress(int|float $progress, int|float|null $total = null, ?string $message = null): void
     {
-        if(is_null($this->progress_token)) return;
+        if(is_null($this->progress_token) || $this->cancelled()) return;
 
+        $this->cancellation->notify();
         $this->notify(match($this->protocol_version) {
             '2024-11-05' => new V20241105\Messaging\Progress\ProgressNotification($this->progress_token, $progress, $total),
             '2025-03-26' => new V20250326\Messaging\Progress\ProgressNotification($this->progress_token, $progress, $total, $message),
