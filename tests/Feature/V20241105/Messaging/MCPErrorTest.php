@@ -13,5 +13,5 @@ it('sets $id to null when the logic is unable to parse the id out of an offendin
 });
 
 it('rejects any arbitrary $error->code value that is not an integer from an RPCErrorCode or MCPErrorCode.', function () {
-    new JSONRPCError('2.0', null, -1, 'Nope');
+    new JSONRPCError('2.0', null, -2, 'Nope');
 })->throws(SuperconductorMCPException::class, 'not a known error code');

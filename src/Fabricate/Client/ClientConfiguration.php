@@ -2,6 +2,8 @@
 
 namespace Fabricate\Client;
 
+use Fabricate\Server\Tasks\TaskStore;
+
 use Fabricate\Contracts\Mechanism\Attributes\ClientConfig;
 use Fabricate\Mechanism\EntityConfiguration;
 use Fabricate\Contracts\Client\ClientConfiguration as ConfigurationContract;
@@ -44,6 +46,8 @@ abstract class ClientConfiguration extends EntityConfiguration implements Config
 
     protected string $attribute = ClientConfig::class;
 
+    protected ?TaskStore $task_store = null;
+
     protected bool|array $tasks = false;
     protected bool|array $extensions = false;
     protected bool|array $elicitation = false;
@@ -78,10 +82,36 @@ abstract class ClientConfiguration extends EntityConfiguration implements Config
     // What each capability exposes. A concrete overrides the ones it declares; the rest expose nothing.
     public function tasks(mixed ...$params): array { return []; }
     public function extensions(mixed ...$params): array { return []; }
-    public function elicitation(mixed ...$params): array { return []; }
     public function experimental(mixed ...$params): array { return []; }
-    public function roots(mixed ...$params): array { return []; }
-    public function sampling(mixed ...$params): array { return []; }
+
+    /**
+     * The developer's Roots concrete that answers roots/list; null when the client exposes none.
+     *
+     * @return class-string<Roots>|null
+     */
+    public function roots(): ?string { return null; }
+
+    /**
+     * The developer's Sampling concrete that answers sampling/createMessage; null when the client samples nothing.
+     *
+     * @return class-string<Sampling>|null
+     */
+    public function sampling(): ?string { return null; }
+
+    /**
+     * The developer's Elicitation concrete that answers elicitation/create; null when the client asks its user nothing.
+     *
+     * @return class-string<Elicitation>|null
+     */
+    public function elicitation(): ?string { return null; }
+
+    /**
+     * The tasks this client runs for a server's sampling/createMessage and elicitation/create on 2025-11-25.
+     */
+    public function taskStore(): TaskStore
+    {
+        return $this->task_store ??= new TaskStore();
+    }
 
     public function tasksConfig(): ?array { return $this->capabilityConfig('tasks'); }
     public function extensionsConfig(): ?array { return $this->capabilityConfig('extensions'); }

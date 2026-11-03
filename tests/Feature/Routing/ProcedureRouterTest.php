@@ -163,14 +163,10 @@ it('refuses a server calling a tool on a client, using the real schema class.', 
         ->toThrow(SuperconductorMCPException::class, "can't receive tools/list");
 });
 
-it('gets a real request past the gates and into the procedure signature.', function () {
-    $reported = spyOnReports();
-
+it('gets a real request past the gates and into the procedure, which lists no roots for a client naming no concrete.', function () {
     $answer = ProcedureRouterFacade::dispatch('2024-11-05', new \Fabricate\Schema\V20241105\Messaging\Roots\ListRootsRequest(), fullClient());
 
-    expect($answer)->toBeInstanceOf(\Fabricate\Schema\V20241105\Messaging\MCPError::class)
-        ->and($reported[0])->toBeInstanceOf(TypeError::class)
-        ->and($reported[0]->getMessage())->toContain('Return value');
+    expect($answer->toArray())->toBe(['roots' => []]);
 });
 
 it('has no route for initialize.', function () {
@@ -294,7 +290,7 @@ it('checks the response against the version before returning it.', function (str
 
 it('gives the versions with an inline error their own error class.', function (string $error) {
     expect(new $error(-32603, 'Internal error'))->toBeInstanceOf(\Fabricate\Contracts\Schema\Messaging\MCPError::class)
-        ->and(fn() => new $error(-1, 'nope'))->toThrow(SuperconductorMCPException::class, 'not a known error code');
+        ->and(fn() => new $error(-2, 'nope'))->toThrow(SuperconductorMCPException::class, 'not a known error code');
 })->with([
     \Fabricate\Schema\V20241105\Messaging\MCPError::class,
     \Fabricate\Schema\V20250326\Messaging\MCPError::class,
@@ -354,8 +350,9 @@ it('declares the results each version can return.', function (string $action, ar
     [\Fabricate\Core\Rpc\Procedures\Tools\ToolsProcedure::class.'@call', ['CallToolResult', 'CreateTaskResult', 'InputRequiredResult', 'Deferred']],
     [\Fabricate\Core\Rpc\Procedures\Prompts\PromptsProcedure::class.'@get', ['GetPromptResult', 'InputRequiredResult', 'Deferred']],
     [\Fabricate\Core\Rpc\Procedures\Resources\ResourcesProcedure::class.'@read', ['ReadResourceResult', 'InputRequiredResult', 'Deferred']],
-    [\Fabricate\Core\Rpc\Procedures\Sampling\SamplingProcedure::class.'@handle', ['CreateMessageResult', 'CreateTaskResult']],
-    [\Fabricate\Core\Rpc\Procedures\Elicitation\ElicitationProcedure::class.'@handle', ['ElicitResult', 'CreateTaskResult']],
+    [\Fabricate\Core\Rpc\Procedures\Sampling\SamplingProcedure::class.'@handle', ['CreateMessageResult', 'CreateTaskResult', 'Deferred']],
+    [\Fabricate\Core\Rpc\Procedures\Elicitation\ElicitationProcedure::class.'@handle', ['ElicitResult', 'CreateTaskResult', 'Deferred']],
+    [\Fabricate\Core\Rpc\Procedures\Roots\RootsProcedure::class.'@handle', ['ListRootsResult', 'Deferred']],
 ]);
 
 function class_basename_of(string $class): string

@@ -33,4 +33,9 @@ final readonly class ReadResourceRequest extends JSONRPCRequest implements ReadR
     {
         return $this->params->requestState;
     }
+
+    public function retry(RequestId $id, InputResponses $input_responses, ?string $request_state): static
+    {
+        return new static($id, new ReadResourceRequestParams($this->params->uri, $this->params->_meta, $input_responses, $request_state));
+    }
 }

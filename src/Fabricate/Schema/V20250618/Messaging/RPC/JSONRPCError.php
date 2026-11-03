@@ -6,6 +6,7 @@ use Fabricate\Contracts\Core\SuperconductorMCPException;
 use Fabricate\Contracts\Schema\RequestId;
 use Fabricate\Contracts\Schema\ResourceErrorCode;
 use Fabricate\Contracts\Schema\RPCErrorCode;
+use Fabricate\Contracts\Schema\SamplingErrorCode;
 use Fabricate\Schema\V20250618\Concerns\JSONRPCError as JSONRPCContract;
 
 readonly class JSONRPCError implements JSONRPCContract
@@ -24,7 +25,7 @@ readonly class JSONRPCError implements JSONRPCContract
             throw new SuperconductorMCPException(static::class.'- jsonrpc must be "2.0" exactly.');
         }
 
-        if(is_null(RPCErrorCode::tryFrom($code)) && is_null(ResourceErrorCode::tryFrom($code)))
+        if(is_null(RPCErrorCode::tryFrom($code)) && is_null(SamplingErrorCode::tryFrom($code)) && is_null(ResourceErrorCode::tryFrom($code)))
         {
             throw new SuperconductorMCPException(static::class.'- '.$code.' is not a known error code.');
         }

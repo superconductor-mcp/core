@@ -2,6 +2,7 @@
 
 namespace Fabricate\Contracts\Schema\Messaging\Inputs;
 
+use Fabricate\Contracts\Schema\RequestId;
 use Fabricate\Schema\V20260728\Messaging\Inputs\InputResponses;
 
 /**
@@ -13,4 +14,9 @@ interface InputResponseRequest
     public function inputResponses(): ?InputResponses;
 
     public function requestState(): ?string;
+
+    /**
+     * The same request under a new id, carrying the client's answers and the server's requestState unchanged.
+     */
+    public function retry(RequestId $id, InputResponses $input_responses, ?string $request_state): static;
 }

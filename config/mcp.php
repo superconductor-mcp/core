@@ -18,7 +18,12 @@ return [
     ],
     'clients' => [
         'discovery_namespace' => 'App\\Mcp\\Clients',
+        // Seconds a client waits for the server to answer its handshake: server/discover, then initialize.
+        'initialize_timeout' => 30,
     ],
+
+    // The servers clients can connect to, by name: MCPServerDefinition objects from the transport packages.
+    'mcp_servers' => [],
     'tools' => [
         'discovery_namespace' => 'App\\Mcp\\Tools',
     ],

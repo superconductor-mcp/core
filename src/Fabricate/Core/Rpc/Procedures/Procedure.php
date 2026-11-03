@@ -2,6 +2,8 @@
 
 namespace Fabricate\Core\Rpc\Procedures;
 
+use Fabricate\Contracts\Mechanism\EntityConfiguration;
+
 use Error;
 use Fabricate\Contracts\Server\ServerConfiguration;
 use Fabricate\Contracts\Mechanism\Attributes\Icon as IconAttribute;
@@ -37,7 +39,7 @@ abstract class Procedure
      *
      * @param array<string, mixed> $named
      */
-    protected function callWith(object $target, string $method, ServerConfiguration $entity_configuration, string $protocol_version, array $named = [], ?RequestContext $context = null): mixed
+    protected function callWith(object $target, string $method, EntityConfiguration $entity_configuration, string $protocol_version, array $named = [], ?RequestContext $context = null): mixed
     {
         return Invoker::call($target, $method, $entity_configuration, $protocol_version, $named, $context);
     }

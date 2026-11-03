@@ -63,7 +63,7 @@ it('omits a missing id on error responses and rejects unknown codes.', function 
     $error = new JSONRPCErrorResponse('2.0', null, new MCPError(RPCErrorCode::PARSE_ERROR->value, 'bad'));
 
     expect($error->toArray())->not->toHaveKey('id')
-        ->and(fn() => new MCPError(-1, 'nope'))->toThrow(SuperconductorMCPException::class);
+        ->and(fn() => new MCPError(-2, 'nope'))->toThrow(SuperconductorMCPException::class);
 });
 
 it('carries elicitations on the URL elicitation error.', function () {

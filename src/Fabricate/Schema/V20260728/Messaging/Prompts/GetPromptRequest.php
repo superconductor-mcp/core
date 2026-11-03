@@ -38,4 +38,9 @@ final readonly class GetPromptRequest extends JSONRPCRequest implements GetPromp
     {
         return $this->params->requestState;
     }
+
+    public function retry(RequestId $id, InputResponses $input_responses, ?string $request_state): static
+    {
+        return new static($id, new GetPromptRequestParams($this->params->name, $this->params->_meta, $this->params->arguments, $input_responses, $request_state));
+    }
 }

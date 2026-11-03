@@ -285,7 +285,7 @@ class MCPServer extends Entity implements Server
         unset($this->subscriptions[json_encode($request->id)]);
     }
 
-    public function receiveResponse(Result|MCPError $response): void
+    public function receiveResponse(RequestId $id, string $method, Result|MCPError $response): void
     {
 
     }

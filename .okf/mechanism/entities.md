@@ -5,7 +5,7 @@ description: How an MCPServer or MCPClient handles every message after the hands
 resource: src/Fabricate/Mechanism/Entity.php
 tags: [entity, server, client, messages, dispatch]
 status: draft
-generated: { by: claude-code/claude-opus-5-5, at: 2026-11-02T00:00:00Z }
+generated: { by: claude-code/claude-opus-5-5, at: 2026-11-03T18:00:00Z }
 sources:
   - id: entity
     resource: src/Fabricate/Mechanism/Entity.php
@@ -16,6 +16,15 @@ sources:
   - id: tests
     resource: tests/Feature/Entity/MCPServerTest.php
     title: MCPServer tests
+  - id: client
+    resource: src/Fabricate/Client/MCPClient.php
+    title: MCPClient
+  - id: client-tests
+    resource: tests/Feature/Entity/MCPClientTest.php
+    title: MCPClient tests
+  - id: envelope
+    resource: src/Fabricate/Mechanism/Envelope.php
+    title: Envelope
   - id: mail
     resource: src/Fabricate/Mechanism/Mail/OutboundMessage.php
     title: OutboundMessage
@@ -39,15 +48,25 @@ if($reply = $server->receiveMessage($decoded)) $pipe->send($reply->toJson());
 
 # Message flow
 
-1. `reconcileMessage()` hydrates the message with `MessageHydrator::hydrateAs()` in the session version. A response or error response takes the method from `$pending_requests`, which it removes.[^entity]
+1. `reconcileMessage()` hydrates the message with `MessageHydrator::hydrateAs()` in the session version. A response or error response takes the method from `$pending_requests`, which it removes; a response to no request of the entity's fails hydration and is dropped.[^entity]
 2. A request goes to `receiveRequest()`, which returns a `Result` or `MCPError`; `encodeMessage()` wraps it with the request's id in that version's JSON-RPC response or error class. A request that fails to hydrate is answered with the hydration error.
-3. A notification goes to `receiveNotification()`, a response or error response to `receiveResponse()`. Neither is answered, valid or not, and `receiveMessage()` returns null.[^tests]
+3. A notification goes to `receiveNotification()`, a response or error response to `receiveResponse($id, $method, $response)` with the id and method of the request it answers. Neither is answered, valid or not, and `receiveMessage()` returns null.[^tests]
+
+# Sending
+
+`request($request, $id)` wraps a request in the version's JSON-RPC request with `Envelope::request()`, records its method in `$pending_requests` by id, queues it and returns the id. From 2025-11-25 a request class carries its own id; earlier versions take `$id`, and leaving it out throws. `notify($notification)` queues a notification in the version's envelope. The transport drains the queue as it does replies.[^entity][^envelope]
 
 `dispatch()` routes a request through the procedure router with the entity's configuration, so state a procedure stores, such as the log level, lands on that configuration. A refusal the router throws becomes the error.[^entity]
 
 # Server
 
 `MCPServer` refuses `initialize` with -32600 before hydrating it, so an initialize naming another version gets the same answer as one naming the session's.[^server][^tests]
+
+# Client
+
+`MCPClient` is built by the client's transport once its handshake is done: an `MCPServerDefinition` from `mcp.mcp_servers` connects a `ClientConfiguration`, returning a `ClientConnection` whose `client()` is the `MCPClient`, or null with the reason in `failure()`. It is built in the version it agreed on; on 2026-07-28, which has none, it is built in that version and each request it sends carries its `_meta` as built. A server request goes through `dispatch()` to the client-side procedures, and the client returns the result like a server; see [Client capabilities](/mechanism/client-capabilities.md). `request($request, $id, $then)` takes an optional closure, which gets the response's typed result or `MCPError`; a response nothing waits on fires `ResponseReceived` (session id, request id, method, response). Every notification fires `NotificationReceived`. The application decides whether and when to react.[^client][^client-tests]
+
+`MCPServer::receiveResponse()` gets the same id and method; it does nothing yet, since the server sends no requests until client capabilities are built.[^server]
 
 # Queue and mail
 
@@ -70,6 +89,9 @@ A tool, prompt or resource can ask for the `RequestContext` in `handle()` or `re
 [^entity]: Entity
 [^server]: MCPServer
 [^tests]: MCPServer tests
+[^client]: MCPClient
+[^client-tests]: MCPClient tests
+[^envelope]: Envelope
 [^mail]: OutboundMessage
 [^context]: RequestContext
 [^async-tests]: Task and async call tests

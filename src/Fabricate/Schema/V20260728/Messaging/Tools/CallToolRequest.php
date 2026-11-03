@@ -48,4 +48,9 @@ final readonly class CallToolRequest extends JSONRPCRequest implements CallToolC
     {
         return $this->params->requestState;
     }
+
+    public function retry(RequestId $id, InputResponses $input_responses, ?string $request_state): static
+    {
+        return new static($id, new CallToolRequestParams($this->params->name, $this->params->_meta, $this->params->arguments, $input_responses, $request_state));
+    }
 }

@@ -25,11 +25,14 @@ use Voyager\NutsAndBolts\Str;
 
 abstract class Entity implements EntityContract
 {
-    /** @var array<string|int, string> The method of each request this entity sent and still awaits an answer to, by id. */
+    /** @var array<string, string> The method of each request this entity sent and still awaits an answer to, by json-encoded id. */
     protected array $pending_requests = [];
 
     /** @var list<JSONRPCMessage> Messages waiting for the transport to send them, oldest first. */
     protected array $messages_queued = [];
+
+    /** The method of the sent request the response being received answers, while it is received. */
+    private ?string $answered_method = null;
 
     /** @var array<string, Cancellation> The requests whose answers are still coming, by json-encoded id. */
     protected array $answering = [];
@@ -79,7 +82,10 @@ abstract class Entity implements EntityContract
 
     abstract public function receiveNotification(Notification $notification): void;
 
-    abstract public function receiveResponse(Result|MCPError $response): void;
+    /**
+     * A response to a request this entity sent: that request's id and method, and the result or error.
+     */
+    abstract public function receiveResponse(RequestId $id, string $method, Result|MCPError $response): void;
 
     /**
      * Handles one message from the peer. A request comes back as the JSON-RPC response to send, unless its answer comes
@@ -118,9 +124,12 @@ abstract class Entity implements EntityContract
             return $this->encodeMessage($message->id(), $answer);
         }
 
-        if($message instanceof DecodedResponse || $message instanceof DecodedError)
+        if(($message instanceof DecodedResponse || $message instanceof DecodedError) && ! is_null($message->id()))
         {
-            $this->receiveResponse($reconciled);
+            // A response answering no request of this entity's was refused by hydration, and has no method.
+            [$method, $this->answered_method] = [$this->answered_method, null];
+
+            if(isset($method)) $this->receiveResponse($message->id(), $method, $reconciled);
         }
         elseif($reconciled instanceof Notification)
         {
@@ -143,6 +152,35 @@ abstract class Entity implements EntityContract
     }
 
     /**
+     * Sends a request: wraps it in this version's JSON-RPC request and queues it, remembering its method so the
+     * response can be hydrated. From 2025-11-25 a request carries its own id; earlier versions take $id here.
+     */
+    public function request(Request $request, ?RequestId $id = null): RequestId
+    {
+        $message = Envelope::request($this->active_protocol_version, $request, $id);
+        $this->pending_requests[self::pendingKey($message->id)] = $request->method;
+        $this->queue($message);
+
+        return $message->id;
+    }
+
+    /**
+     * Sends a notification in this version's JSON-RPC envelope.
+     */
+    public function notify(Notification $notification): void
+    {
+        $this->queue(Envelope::notification($this->active_protocol_version, $notification));
+    }
+
+    /**
+     * One key for an int and a string id that print the same.
+     */
+    protected static function pendingKey(?RequestId $id): string
+    {
+        return json_encode($id?->id);
+    }
+
+    /**
      * The schema object the message is in this entity's protocol version, or an MCPError saying why it is none.
      */
     protected function reconcileMessage(DecodedMessage $message): Result|Notification|Request|MCPError
@@ -153,8 +191,8 @@ abstract class Entity implements EntityContract
 
         if($message instanceof DecodedResponse || $message instanceof DecodedError)
         {
-            $request_method = $this->pending_requests[$message->id()?->id] ?? null;
-            unset($this->pending_requests[$message->id()?->id]);
+            $request_method = $this->answered_method = $this->pending_requests[self::pendingKey($message->id())] ?? null;
+            unset($this->pending_requests[self::pendingKey($message->id())]);
         }
 
         return MessageHydrator::hydrateAs($message, $this->active_protocol_version, $request_method);

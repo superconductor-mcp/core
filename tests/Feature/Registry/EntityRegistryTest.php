@@ -72,9 +72,9 @@ it('announces itself with the Implementation shape of each version.', function (
 ]);
 
 it('cannot announce itself without a version in its attribute.', function () {
-    $client = $this->panel->make(CuriousClient::class);
+    $client = new #[\Fabricate\Contracts\Mechanism\Attributes\ClientConfig('versionless')] class(new \Fabricate\Client\ClientCapabilitiesFactory()) extends \Fabricate\Client\ClientConfiguration {};
 
-    expect($client->name())->toBe('curious-client')
+    expect($client->name())->toBe('versionless')
         ->and(fn () => $client->implementation('2026-07-28'))->toThrow(MCPMechanismException::class, 'ClientConfig');
 });
 
@@ -92,7 +92,8 @@ it('exposes nothing for a capability the concrete does not override.', function 
     expect($server->tools())->toBe(['echo', 'shout', 'enhashen', 'whisper', 'ponder'])
         ->and($server->prompts())->toBe(['greet'])
         ->and($server->resources())->toBe(['echo://ponderings', 'echo://reverse/{text}'])
-        ->and($client->roots())->toBe([]);
+        ->and($client->roots())->toBe(\App\Mcp\Roots\CuriousRoots::class)
+        ->and(new class(new \Fabricate\Client\ClientCapabilitiesFactory()) extends \Fabricate\Client\ClientConfiguration {}->roots())->toBeNull();
 });
 
 it('names and describes a tool from its ToolCall attribute.', function () {

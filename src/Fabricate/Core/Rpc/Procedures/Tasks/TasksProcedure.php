@@ -19,6 +19,7 @@ use Fabricate\Contracts\Schema\Messaging\Tasks\UpdateTaskRequest;
 use Fabricate\Contracts\Schema\Messaging\EmptyResult;
 use Fabricate\Contracts\Schema\RPCErrorCode;
 use Fabricate\Contracts\Server\ServerConfiguration;
+use Fabricate\Contracts\Client\ClientConfiguration;
 use Fabricate\Core\Rpc\Procedures\Procedure;
 use Fabricate\Mechanism\Deferred;
 use Fabricate\Mechanism\Paginator;
@@ -34,7 +35,8 @@ use Fabricate\Server\Tasks\TaskStore;
 /**
  * The tasks a server ran for its requests: 2025-11-25's tasks utility, and from 2026-07-28 the io.modelcontextprotocol/
  * tasks extension, which polls with tasks/get, takes input through tasks/update, and has no tasks/list or tasks/result.
- * The store lives on the server configuration, so a client receiving tasks has none to report.
+ * The store lives on the configuration: a server's holds its tool calls, a 2025-11-25 client's its sampling and
+ * elicitation run as tasks.
  */
 #[CompatibleVersions('2025-11-25')]
 #[RequiresCapability('tasks')]
@@ -157,7 +159,7 @@ class TasksProcedure extends Procedure
 
     private function store(EntityConfiguration $entity_configuration): ?TaskStore
     {
-        return $entity_configuration instanceof ServerConfiguration ? $entity_configuration->taskStore() : null;
+        return $entity_configuration instanceof ServerConfiguration || $entity_configuration instanceof ClientConfiguration ? $entity_configuration->taskStore() : null;
     }
 
     /**
