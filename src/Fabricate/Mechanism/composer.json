@@ -1,7 +1,17 @@
 {
     "name": "superconductor/mechanism",
-    "description": "The procedures and router that answer MCP requests, shared by server and client.",
+    "description": "Entities, message decoding and hydration, and the tools, prompts and resources shared by MCP servers and clients.",
+    "keywords": [
+        "superconductor",
+        "mcp",
+        "model-context-protocol"
+    ],
     "license": "MIT",
+    "homepage": "https://venusian.projectsaturnstudios.com/docs/superconductor/overview",
+    "support": {
+        "issues": "https://github.com/superconductor-mcp/core/issues",
+        "source": "https://github.com/superconductor-fabricate/mechanism"
+    },
     "authors": [
         {
             "name": "Angel Gonzalez",
@@ -10,10 +20,17 @@
     ],
     "require": {
         "php": "~8.4.27||^8.5.12",
-        "superconductor/nuts-and-bolts": "^0.11.0",
-        "venusian-voyager/workflows": "^0.11.0"
+        "ramsey/uuid": "^4.7",
+        "superconductor/client": "^0.11.0",
+        "superconductor/contracts": "^0.11.0",
+        "superconductor/schema": "^0.11.0",
+        "superconductor/server": "^0.11.0",
+        "venusian-voyager/contracts": "^0.11.0",
+        "venusian-voyager/nuts-and-bolts": "^0.11.0",
+        "venusian-voyager/signals": "^0.11.0"
     },
     "minimum-stability": "dev",
+    "prefer-stable": true,
     "autoload": {
         "psr-4": {
             "Fabricate\\Mechanism\\": ""

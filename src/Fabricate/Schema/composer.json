@@ -1,7 +1,18 @@
 {
     "name": "superconductor/schema",
-    "description": "The Superconductor MCP Schema Component.",
+    "description": "One hand-written PHP tree per MCP schema version, 2024-11-05 through 2026-07-28, plus the code they share.",
+    "keywords": [
+        "superconductor",
+        "mcp",
+        "model-context-protocol",
+        "schema"
+    ],
     "license": "MIT",
+    "homepage": "https://venusian.projectsaturnstudios.com/docs/superconductor/overview",
+    "support": {
+        "issues": "https://github.com/superconductor-mcp/core/issues",
+        "source": "https://github.com/superconductor-fabricate/schema"
+    },
     "authors": [
         {
             "name": "Angel Gonzalez",
@@ -10,10 +21,13 @@
     ],
     "require": {
         "php": "~8.4.27||^8.5.12",
+        "superconductor/client": "^0.11.0",
         "superconductor/contracts": "^0.11.0",
+        "superconductor/server": "^0.11.0",
         "venusian-voyager/contracts": "^0.11.0"
     },
     "minimum-stability": "dev",
+    "prefer-stable": true,
     "autoload": {
         "psr-4": {
             "Fabricate\\Schema\\": ""

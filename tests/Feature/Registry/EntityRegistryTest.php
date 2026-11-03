@@ -50,7 +50,7 @@ it('reports an unknown name with the names it does know.', function () {
 });
 
 it('discovers the concrete configurations in the application folders.', function () {
-    $app = realpath(__DIR__.'/../../../../../app');
+    $app = realpath(__DIR__.'/../../Fixtures/app');
 
     expect(DiscoverServers::within($app.'/Mcp/Servers', 'App\\Mcp\\Servers'))->toBe([EchoServer::class])
         ->and(DiscoverClients::within($app.'/Mcp/Clients', 'App\\Mcp\\Clients'))->toBe([CuriousClient::class])

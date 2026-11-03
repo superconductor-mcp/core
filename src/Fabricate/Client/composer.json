@@ -1,7 +1,18 @@
 {
     "name": "superconductor/client",
     "description": "MCPClient and the client manager: one connection per server, living inside the application event loop.",
+    "keywords": [
+        "superconductor",
+        "mcp",
+        "model-context-protocol",
+        "client"
+    ],
     "license": "MIT",
+    "homepage": "https://venusian.projectsaturnstudios.com/docs/superconductor/overview",
+    "support": {
+        "issues": "https://github.com/superconductor-mcp/core/issues",
+        "source": "https://github.com/superconductor-fabricate/client"
+    },
     "authors": [
         {
             "name": "Angel Gonzalez",
@@ -10,13 +21,15 @@
     ],
     "require": {
         "php": "~8.4.27||^8.5.12",
+        "superconductor/contracts": "^0.11.0",
         "superconductor/mechanism": "^0.11.0",
-        "superconductor/nuts-and-bolts": "^0.11.0",
-        "venusian-voyager/io-pools": "^0.11.0",
+        "superconductor/schema": "^0.11.0",
+        "superconductor/server": "^0.11.0",
         "venusian-voyager/nuts-and-bolts": "^0.11.0",
-        "venusian-voyager/workflows": "^0.11.0"
+        "venusian-voyager/signals": "^0.11.0"
     },
     "minimum-stability": "dev",
+    "prefer-stable": true,
     "autoload": {
         "psr-4": {
             "Fabricate\\Client\\": ""

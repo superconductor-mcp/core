@@ -4,7 +4,7 @@ okf_version: "0.2"
 
 # Orientation
 
-* [Package](orientation/package.md) - What superconductor/core holds today: Schema and Contracts are built, the runtime components are not.
+* [Package](orientation/package.md) - What superconductor/core holds, how its five components split into their own packages, and how it is tested and released.
 
 # Components
 

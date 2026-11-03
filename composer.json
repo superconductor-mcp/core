@@ -11,6 +11,11 @@
         "venusian"
     ],
     "license": "MIT",
+    "homepage": "https://venusian.projectsaturnstudios.com/docs/superconductor/overview",
+    "support": {
+        "issues": "https://github.com/superconductor-mcp/core/issues",
+        "source": "https://github.com/superconductor-mcp/core"
+    },
     "authors": [
         {
             "name": "Angel Gonzalez",
@@ -19,21 +24,24 @@
     ],
     "require": {
         "php": "~8.4.27||^8.5.12",
-        "venusian-voyager/console": "^0.11.0",
+        "ramsey/uuid": "^4.7",
         "venusian-voyager/contracts": "^0.11.0",
-        "venusian-voyager/io-pools": "^0.11.0",
         "venusian-voyager/nuts-and-bolts": "^0.11.0",
-        "venusian-voyager/workflows": "^0.11.0"
+        "venusian-voyager/signals": "^0.11.0"
     },
     "require-dev": {
+        "mockery/mockery": "^1.6",
         "pestphp/pest": "^4.0",
         "venusian-voyager/config": "^0.11.0",
         "venusian/framework": "^0.11.0"
     },
+    "suggest": {
+        "superconductor/stdio": "Required to serve and connect to MCP servers over stdio (^0.11.0).",
+        "superconductor/web": "Required to serve and connect to MCP servers over HTTP+SSE and Streamable HTTP (^0.11.0)."
+    },
     "replace": {
         "superconductor/contracts": "self.version",
         "superconductor/schema": "self.version",
-        "superconductor/nuts-and-bolts": "self.version",
         "superconductor/mechanism": "self.version",
         "superconductor/server": "self.version",
         "superconductor/client": "self.version"
@@ -45,6 +53,7 @@
     },
     "autoload-dev": {
         "psr-4": {
+            "App\\": "tests/Fixtures/app/",
             "Fabricate\\Tests\\": "tests/"
         }
     },
@@ -52,6 +61,9 @@
         "test": "vendor/bin/pest"
     },
     "extra": {
+        "branch-alias": {
+            "dev-main": "0.11.x-dev"
+        },
         "venusian": {
             "providers": [
                 "Fabricate\\Core\\Providers\\SuperconductorMCPServiceProvider"

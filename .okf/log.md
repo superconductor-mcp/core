@@ -2,6 +2,8 @@
 
 ## 2026-11-03
 
+* **Release prep**: [Package](orientation/package.md): manifests require what each component imports: `superconductor/nuts-and-bolts`, which never existed, is gone from every `require` and from `replace`; components declare their sibling components, `venusian-voyager/signals` for `signal()`, and Mechanism `ramsey/uuid`; core drops the unused `venusian-voyager/console`, `io-pools` and `workflows`, adds `branch-alias` 0.11.x-dev, and suggests the transports. Every manifest gains `homepage` and `support`. `.github/split.sh` (from venusian/surface), `split.yml` to `superconductor-fabricate`, and `tests.yml` on 8.4/8.5 NTS/ZTS. Tests run standalone: devbox's `App\Mcp` classes copied to `tests/Fixtures/app`, `mockery/mockery` in require-dev. README written.
+
 * **Fix**: [Entities](mechanism/entities.md): a closed `MCPClient` queued requests nothing would send; it now answers them at once with its close reason. `fail()` and `dispatch()` built the 2026-07-28 `MCPError` in every version; `Entity::error()` builds the session version's. `Entity::pending($id)`.
 * **Update**: [Entities](mechanism/entities.md): `MCPClient::close($reason)` answers every request in flight with an `MCPError` carrying the reason; `fail($id, $reason)` and `failPending($reason)`; the `ConnectionFailed` signal. `Entity::forget()` drops a sent request and its timeout. Version literals in `Entity` and `MCPClient` replaced by `ProtocolVersion`. No client connection code is in core: each transport package owns its connection, handshake and session.
 * **Update**: [Entities](mechanism/entities.md): request timeouts: `mcp.request_timeout` and `$request_timeout`, `notifications/cancelled` on expiry, `RequestTimedOut`; `subscriptions/listen` is exempt.

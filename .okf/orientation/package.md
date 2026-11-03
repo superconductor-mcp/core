@@ -1,47 +1,56 @@
 ---
 type: Package
 title: superconductor/core
-description: What superconductor/core holds today; Schema and Contracts are built, the runtime components are not.
+description: What superconductor/core holds, how its five components split into their own packages, and how it is tested and released.
 resource: composer.json
-tags: [package, orientation, status]
+tags: [package, orientation, status, release]
 status: draft
-generated: { by: claude-code/claude-opus-5-5, at: 2026-11-01T00:00:00Z }
+generated: { by: claude-code/claude-opus-5-5, at: 2026-11-03T22:00:00Z }
 sources:
   - id: manifest
     resource: composer.json
     title: Package manifest
   - id: tree
     resource: src/Fabricate
-    title: Source tree, listed 2026-11-01
-  - id: logging-plan
-    resource: ../../docs/superpowers/plans/2026-10-31-mcp-logging.md
-    title: MCP logging implementation plan
+    title: Source tree, listed 2026-11-03
+  - id: split
+    resource: .github/split.sh
+    title: split.sh, copied unchanged from venusian/surface
+  - id: workflows
+    resource: .github/workflows
+    title: tests.yml and split.yml
+  - id: docs
+    resource: https://venusian.projectsaturnstudios.com/docs/superconductor/overview
+    title: Superconductor MCP documentation, venusian/docs superconductor/
 ---
 
 # Overview
 
-The Superconductor MCP framework module for VenusianPHP, version 0.11.0, autoloaded as `Fabricate\` from `src/Fabricate/`.[^manifest] It replaces `superconductor/contracts`, `schema`, `nuts-and-bolts`, `mechanism`, `server` and `client`.[^manifest]
+The Superconductor MCP framework module for VenusianPHP, version 0.11.0, autoloaded as `Fabricate\` from `src/Fabricate/`.[^manifest] It replaces `superconductor/contracts`, `schema`, `mechanism`, `server` and `client`, its five split components, and suggests the `superconductor/stdio` and `superconductor/web` transports.[^manifest] User documentation is the `superconductor/` section of venusian/docs.[^docs]
 
 # Components
 
-| Component | State |
-|-----------|-------|
-| [Schema](/schema/component.md) | Built for all five versions |
-| [Contracts](/contracts/component.md) | `Contracts/Schema` built, plus `Contracts/Core/SuperconductorMCPException` |
-| [Capabilities](/mechanism/capabilities.md) | Built: configurations produce a version's capabilities object |
-| `Mechanism`, `Server`, `Client` | Otherwise skeletons: `MCPServer`, `MCPClient` and the sessions have no behavior yet[^tree] |
-| `Contracts/{Mechanism,Server,Client}` | Marker interfaces and `capabilities()`[^tree] |
-| [Procedure routing](/mechanism/procedure-routing.md) | Router and gates built; procedure bodies are stubs |
-| `Core` | `SuperconductorMCPServiceProvider`, which merges `config/mcp.php` and loads routes[^tree] |
+| Component | Package | Holds |
+|-----------|---------|-------|
+| [Schema](/schema/component.md) | `superconductor/schema` | One tree per protocol version, all five built |
+| [Contracts](/contracts/component.md) | `superconductor/contracts` | Version-less interfaces, enums and attributes |
+| `Mechanism` | `superconductor/mechanism` | [Entities](/mechanism/entities.md), [message decoding](/mechanism/message-decoding.md), the [tool](/mechanism/tools.md), [prompt](/mechanism/prompts.md) and [resource](/mechanism/resources.md) bases |
+| `Server` | `superconductor/server` | `MCPServer`, `ServerConfiguration`, the registries and discovery, [tasks](/mechanism/tasks.md) |
+| `Client` | `superconductor/client` | `MCPClient`, `ClientConfiguration`, the [client capability](/mechanism/client-capabilities.md) concretes |
+| `Core` | none: ships only in `superconductor/core` | `SuperconductorMCPServiceProvider`, the [procedure router](/mechanism/procedure-routing.md) and procedures, the capability tools |
 
-# Next
+`Core` has no `composer.json`, as `Voyager/Core` and `Surface/Core` have none. `Mechanism\Entity` imports `Core\Routing\ProcedureRouterFacade` and `Client\MCPClient` imports `Core\Rpc\Procedures\ClientCapabilityProcedure`, so those two components run with core installed, as Voyager's Bus and Queue run with the framework.[^tree]
 
-The logging plan covers `logging/setLevel` and `notifications/message` on server and client over both transports.[^logging-plan] It is not started, and it was written against an earlier tree: it names `Core/Procedures/Server/LoggingProcedure.php` and `Mechanism/LineDecoder.php`, and a baseline of 48 passing tests, none of which exist now.[^logging-plan][^tree]
+# Release
+
+`tests.yml` runs Pest on PHP 8.4 and 8.5, NTS and ZTS, refusing a PHP below the patched floor or of the wrong thread safety. A `v*` tag runs `split.yml`: the tests, then `split.sh`, which checks every manifest against the tag (version, `branch-alias` `0.11.x-dev`, `^0.11` on its own packages), splits each `src/Fabricate/<Component>` with splitsh-lite and pushes it and the tag to `github.com/superconductor-fabricate/<package>`, using the `SPLIT_TOKEN` secret.[^workflows][^split]
 
 # Tests
 
-Run from `apps/devbox` with `./vendor/bin/pest superconductor/core/tests`.[^logging-plan] The package has no `phpunit.xml` of its own.
+`vendor/bin/pest` from the package root. Tests that need an application's `App\Mcp` classes get them from `tests/Fixtures/app`, autoloaded as `App\` in `autoload-dev`.[^manifest]
 
 [^manifest]: Package manifest
-[^tree]: Source tree, listed 2026-11-01
-[^logging-plan]: MCP logging implementation plan
+[^tree]: Source tree, listed 2026-11-03
+[^split]: split.sh, copied unchanged from venusian/surface
+[^workflows]: tests.yml and split.yml
+[^docs]: Superconductor MCP documentation, venusian/docs superconductor/

@@ -1,7 +1,18 @@
 {
     "name": "superconductor/contracts",
     "description": "The interfaces Superconductor MCP components are written against.",
+    "keywords": [
+        "superconductor",
+        "mcp",
+        "model-context-protocol",
+        "contracts"
+    ],
     "license": "MIT",
+    "homepage": "https://venusian.projectsaturnstudios.com/docs/superconductor/overview",
+    "support": {
+        "issues": "https://github.com/superconductor-mcp/core/issues",
+        "source": "https://github.com/superconductor-fabricate/contracts"
+    },
     "authors": [
         {
             "name": "Angel Gonzalez",
@@ -10,9 +21,13 @@
     ],
     "require": {
         "php": "~8.4.27||^8.5.12",
+        "superconductor/mechanism": "^0.11.0",
+        "superconductor/schema": "^0.11.0",
+        "superconductor/server": "^0.11.0",
         "venusian-voyager/contracts": "^0.11.0"
     },
     "minimum-stability": "dev",
+    "prefer-stable": true,
     "autoload": {
         "psr-4": {
             "Fabricate\\Contracts\\": ""
