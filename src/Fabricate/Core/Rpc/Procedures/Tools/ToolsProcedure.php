@@ -31,6 +31,9 @@ use Fabricate\Schema\V20250618;
 use Fabricate\Schema\V20251125;
 use Fabricate\Schema\V20260728;
 use Fabricate\Schema\V20260728\Messaging\MetaObjects\ResultMetaObject;
+use Fabricate\Schema\V20260728\Concerns\MCPErrorCode;
+use Fabricate\Schema\V20260728\Messaging\Inputs\InputResponses;
+use Fabricate\Server\ServerConfiguration as ServerConfigurationBase;
 use Fabricate\Server\ToolRegistry;
 use JsonException;
 use Stringable;
@@ -86,7 +89,9 @@ class ToolsProcedure extends Procedure
 
         $meta = $this->resultMeta($entity_configuration, $protocol_version);
         $named = $this->retryInput($request, 'tools/call', $name);
-        $as_task = $this->runsAsTask($request, $class, $entity_configuration, $protocol_version);
+        $as_task = $protocol_version === '2026-07-28'
+            ? $this->runsAsModernTask($class, $entity_configuration, $context)
+            : $this->runsAsTask($request, $class, $entity_configuration, $protocol_version);
         $arguments = $request->arguments() ?? [];
 
         try {
@@ -109,6 +114,11 @@ class ToolsProcedure extends Procedure
             ? $this->laterInputRequired($output, 'tools/call', $name, $context, $entity_configuration, $protocol_version)
             : $this->outputResult($class, $output, $protocol_version, $meta);
         $fail = fn(Throwable $e) => $this->callResult($protocol_version, [$e->getMessage()], true, meta: $meta);
+
+        if($as_task && $protocol_version === '2026-07-28')
+        {
+            return $this->runModernTask($tool, $name, $class, $entity_configuration, $context, $named, $meta);
+        }
 
         if($as_task)
         {
@@ -162,6 +172,95 @@ class ToolsProcedure extends Procedure
     }
 
     /**
+     * Whether a 2026-07-28 call runs as a task. The server decides: when the configuration runs tools/call as tasks, a
+     * tool that requires tasks always does and one that allows them does for a client that declared the tasks
+     * extension. A tool that requires them refuses a client that didn't with -32021, naming the extension.
+     *
+     * @param class-string<Tool> $tool
+     */
+    private function runsAsModernTask(string $tool, ServerConfiguration $entity_configuration, ?RequestContext $context): bool
+    {
+        if(! ($entity_configuration->tasksConfig()['requests']['tools']['call'] ?? false) || $tool::taskSupport() === Tool::TASKS_FORBIDDEN) {
+            return false;
+        }
+
+        $declared = isset($context?->client_capabilities['extensions'][ServerConfigurationBase::TASKS_EXTENSION]);
+
+        if(! $declared && $tool::taskSupport() === Tool::TASKS_REQUIRED) {
+            throw new SuperconductorMCPException("Tool [{$tool::name()}] only runs as a task, which needs the ".ServerConfigurationBase::TASKS_EXTENSION.' extension.', MCPErrorCode::MISSING_REQUIRED_CLIENT_CAPABILITY->value, data: ['requiredCapabilities' => ['extensions' => [ServerConfigurationBase::TASKS_EXTENSION => (object) []]]]);
+        }
+
+        return $declared;
+    }
+
+    /**
+     * Runs a 2026-07-28 call as a task and answers with its handle. A tool that asks for input as soon as it's called
+     * gets InputRequiredResult instead, so the exchange finishes before any task exists. Input it asks for later moves
+     * the task to input_required until tasks/update answers it; handle() then runs again with the answers and the
+     * state it gave. A tool error still completes the task; only a JSON-RPC error fails it.
+     *
+     * @param class-string<Tool> $class
+     * @param array<string, mixed> $named
+     */
+    private function runModernTask(Tool $tool, string $name, string $class, ServerConfiguration $entity_configuration, ?RequestContext $context, array $named, ?ResultMetaObject $meta): V20260728\Messaging\Tasks\CreateTaskResult|InputRequiredResult
+    {
+        $store = $entity_configuration->taskStore();
+        $task = $store->create();
+        $attempt = null;
+
+        $settle = function(CallToolResult|InputRequired $outcome) use (&$attempt, $task, $name, $context, $entity_configuration): void {
+            if(! $outcome instanceof InputRequired) {
+                $task->settle($outcome);
+                return;
+            }
+
+            try {
+                $this->inputRequired($outcome, 'tools/call', $name, $context, $entity_configuration, '2026-07-28');
+            } catch(SuperconductorMCPException $e) {
+                // The client can't give what the tool asked for: a JSON-RPC error, so the task fails.
+                $task->settle(new V20260728\Messaging\MCPError($e->getCode(), $e->getMessage(), $e->data));
+                return;
+            }
+
+            $task->requireInput($outcome->requests, fn(InputResponses $answers) => $attempt(['input_responses' => $answers, 'request_state' => $outcome->state], false));
+        };
+
+        $attempt = function(array $named, bool $first) use (&$settle, $tool, $class, $entity_configuration, $context, $meta): ?InputRequired {
+            $completion = new Completion(
+                fn(mixed $output) => $output instanceof InputRequired ? $output : $this->outputResult($class, $output, '2026-07-28', $meta),
+                fn(Throwable $e) => $this->callResult('2026-07-28', [$e->getMessage()], true, meta: $meta),
+                $settle,
+            );
+            $async = $tool->wantsAsync() && isset($context);
+
+            if($async) $tool->deferTo($completion);
+
+            try {
+                $output = $this->callWith($tool, 'handle', $entity_configuration, '2026-07-28', $named, $context);
+            } catch(Throwable $e) {
+                $completion->fail($e);
+                return null;
+            }
+
+            if($first && $output instanceof InputRequired) return $output;
+            if(! $async || $output instanceof InputRequired) $completion->finish($output);
+
+            return null;
+        };
+
+        if($asked = $attempt($named, true)) {
+            $store->forget($task->id);
+
+            return $this->inputRequired($asked, 'tools/call', $name, $context, $entity_configuration, '2026-07-28');
+        }
+
+        return new V20260728\Messaging\Tasks\CreateTaskResult(
+            $task->id, V20260728\Concerns\TaskStatus::from($task->status), $task->created_at->format(DATE_RFC3339_EXTENDED), $task->updated_at->format(DATE_RFC3339_EXTENDED),
+            $task->ttl, $task->status_message, $task->poll_interval, $meta,
+        );
+    }
+
+    /**
      * Whether the call runs as a task: the client asked, the server offers tasks for tools/call, and the tool allows it.
      * A tool that forbids tasks refuses a task request, and one that requires them refuses a plain call, with -32601.
      *
@@ -189,7 +288,7 @@ class ToolsProcedure extends Procedure
 
     /**
      * A tool as the requested version defines it: its input schema, and from 2025-03-26 its annotations, from
-     * 2025-06-18 its title and output schema, from 2025-11-25 its icons and whether it runs as a task.
+     * 2025-06-18 its title and output schema, from 2025-11-25 its icons, and on 2025-11-25 whether it runs as a task.
      *
      * @param class-string<Tool> $tool
      */
@@ -212,7 +311,10 @@ class ToolsProcedure extends Procedure
                 execution: $tool::taskSupport() === Tool::TASKS_FORBIDDEN ? null : new V20251125\Capabilities\Tools\ToolExecution(V20251125\Concerns\TaskSupport::from($tool::taskSupport())),
                 annotations: $annotations, icons: $this->icons($tool), title: $tool::title(),
             ),
-            '2026-07-28' => new V20260728\Capabilities\Tools\ToolDefinition($tool::name(), $tool::description(), ['properties' => $properties, 'required' => $required]),
+            '2026-07-28' => new V20260728\Capabilities\Tools\ToolDefinition(
+                $tool::name(), $tool::description(), ['properties' => $properties, 'required' => $required],
+                is_null($output) ? null : ['type' => 'object'] + $output, $annotations, $this->icons($tool), $tool::title(),
+            ),
         };
     }
 

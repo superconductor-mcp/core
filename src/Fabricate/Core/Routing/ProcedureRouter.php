@@ -17,6 +17,7 @@ use Fabricate\Contracts\Schema\Messaging\Request;
 use Fabricate\Contracts\Schema\Messaging\Result;
 use Fabricate\Contracts\Schema\Messaging\RPC\JSONRPCEnvelope;
 use Fabricate\Contracts\Schema\Messaging\Tasks\CreateTaskResult;
+use Fabricate\Server\ServerConfiguration;
 use Fabricate\Contracts\Core\SuperconductorMCPException;
 use Fabricate\Contracts\Mechanism\EntityCapabilities;
 use Fabricate\Contracts\Mechanism\EntityConfiguration;
@@ -45,7 +46,9 @@ class ProcedureRouter
         'tasks/get' => [Messages\Tasks\GetTaskResult::class],
         'tasks/result' => [Messages\Tasks\GetTaskPayloadResult::class],
         'tasks/list' => [Messages\Tasks\ListTasksResult::class],
-        'tasks/cancel' => [Messages\Tasks\CancelTaskResult::class],
+        // 2026-07-28's tasks extension acknowledges tasks/cancel and tasks/update with an empty result.
+        'tasks/cancel' => [Messages\Tasks\CancelTaskResult::class, Messages\EmptyResult::class],
+        'tasks/update' => [Messages\EmptyResult::class],
         'sampling/createMessage' => [Messages\Sampling\CreateMessageResult::class, CreateTaskResult::class],
         'roots/list' => [Messages\Roots\ListRootsResult::class],
         'elicitation/create' => [Messages\Elicitation\ElicitResult::class, CreateTaskResult::class],
@@ -155,15 +158,23 @@ class ProcedureRouter
     {
         if(!$this->belongsToVersion($response, $protocol_version)) return false;
 
-        if($response instanceof CreateTaskResult && !$this->ranAsTask($method, $request, $capabilities)) return false;
+        if($response instanceof CreateTaskResult && !$this->ranAsTask($method, $request, $capabilities, $protocol_version)) return false;
 
         if(!isset($this->method_results[$method])) return true;
 
         return array_any($this->method_results[$method], fn(string $result) => $response instanceof $result);
     }
 
-    private function ranAsTask(string $method, Request $request, EntityCapabilities $capabilities): bool
+    /**
+     * Whether a task handle is a right answer: on 2025-11-25 the request asked for a task the capabilities offer it for;
+     * on 2026-07-28 the server decides, but only if it offers the tasks extension.
+     */
+    private function ranAsTask(string $method, Request $request, EntityCapabilities $capabilities, string $protocol_version): bool
     {
+        if($protocol_version === '2026-07-28') {
+            return $method === 'tools/call' && isset($capabilities->extensions[ServerConfiguration::TASKS_EXTENSION]);
+        }
+
         return isset($request->params->task, $this->task_capabilities[$method])
             && $capabilities->offersCapability($this->task_capabilities[$method]);
     }

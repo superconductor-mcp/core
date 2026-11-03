@@ -18,6 +18,11 @@ use Fabricate\Contracts\Schema\Messaging\Cancellation\CancelledNotification;
 use Fabricate\Contracts\Schema\RequestId;
 use Fabricate\Mechanism\Signals\ListChanged;
 use Fabricate\Mechanism\Signals\LogMessage;
+use Fabricate\Mechanism\Signals\Subscribed;
+use Fabricate\Mechanism\Signals\TaskChanged;
+use Fabricate\Server\Tasks\TaskRecord;
+use Fabricate\Schema\V20260728;
+use Fabricate\Schema\V20260728\Messaging\MetaObjects\NotificationMetaObject;
 use Fabricate\Schema\V20251125;
 use Fabricate\Mechanism\Signals\ResourceUpdated;
 use Voyager\Contracts\IOPools\Loop;
@@ -34,6 +39,9 @@ class MCPServer extends Entity implements Server
     /** @var ArrayObject<string, self>|null The open sessions this one is listed in, until it closes. */
     private ?ArrayObject $sessions = null;
 
+    /** @var array<string, Subscribed> On 2026-07-28, the open subscriptions/listen requests, by json-encoded id. */
+    private array $subscriptions = [];
+
     public function __construct(
         ServerConfiguration $configuration,
         string $active_protocol_version,
@@ -49,6 +57,13 @@ class MCPServer extends Entity implements Server
      */
     public function close(): void
     {
+        // A server ending a subscription cancels its listen request, the one use 2026-07-28 allows a server cancel for.
+        foreach($this->subscriptions as $subscription) {
+            $id = $subscription->context->id;
+            $subscription->context->notify(new V20260728\Messaging\Cancellation\CancelledNotification(new V20260728\Messaging\Params\CancelledNotificationParams($id, 'The server is closing.', new NotificationMetaObject($id))));
+        }
+
+        $this->subscriptions = [];
         unset($this->sessions[$this->session_id]);
         $this->sessions = null;
     }
@@ -86,15 +101,38 @@ class MCPServer extends Entity implements Server
             $signals->listen(LogMessage::class, function(LogMessage $signal) use ($reached) {
                 foreach($reached($signal->session_id) as $server) $server->logged($signal);
             });
+
+            // A task id is unguessable, so only a subscription that was told it can name it.
+            $signals->listen(TaskChanged::class, function(TaskChanged $signal) use ($reached) {
+                foreach($reached(null) as $server) $server->taskChanged($signal->task);
+            });
+
+            $signals->listen(Subscribed::class, function(Subscribed $signal) use ($reached) {
+                foreach($reached($signal->context->session_id) as $server) $server->subscriptions[json_encode($signal->context->id->id)] = $signal;
+            });
         }
 
         $this->sessions = self::$open[$signals];
         $this->sessions[$this->session_id] = $this;
     }
 
+    /**
+     * On 2026-07-28 each subscription whose filter names the URI gets the update; earlier, the session gets it if it
+     * subscribed with resources/subscribe.
+     */
     private function resourceChanged(string $uri): void
     {
-        if($this->configuration->subscribedTo($uri)) $this->post($this->resourceUpdated($uri));
+        if($this->active_protocol_version !== '2026-07-28') {
+            if($this->configuration->subscribedTo($uri)) $this->post($this->resourceUpdated($uri));
+
+            return;
+        }
+
+        foreach($this->subscriptions as $subscription) {
+            if(in_array($uri, $subscription->notifications->resourceSubscriptions ?? [], true)) {
+                $subscription->context->notify($this->resourceUpdated($uri, new NotificationMetaObject($subscription->context->id)));
+            }
+        }
     }
 
     /**
@@ -121,9 +159,35 @@ class MCPServer extends Entity implements Server
         app(Loop::class)->post(new OutboundMessage($this->session_id, $this->active_protocol_version, $notification, related_request: $signal->request));
     }
 
+    /**
+     * Sends notifications/tasks, the task's full state, to each 2026-07-28 subscription that agreed to the task.
+     */
+    private function taskChanged(TaskRecord $task): void
+    {
+        foreach($this->subscriptions as $subscription) {
+            if(in_array($task->id, $subscription->notifications->taskIds ?? [], true)) {
+                $subscription->context->notify(new V20260728\Messaging\Tasks\TaskStatusNotification(new V20260728\Messaging\Params\TaskStatusNotificationParams($task->toDetailed(), new NotificationMetaObject($subscription->context->id))));
+            }
+        }
+    }
+
+    /**
+     * On 2026-07-28 each subscription that agreed to the list's changes gets the notification; earlier, the session gets
+     * it if the configuration declared listChanged.
+     */
     private function listChangedFor(string $capability): void
     {
-        if($this->configuration->announcesListChanges($capability)) $this->post($this->listChanged($capability));
+        if($this->active_protocol_version !== '2026-07-28') {
+            if($this->configuration->announcesListChanges($capability)) $this->post($this->listChanged($capability));
+
+            return;
+        }
+
+        foreach($this->subscriptions as $subscription) {
+            if($subscription->notifications->{"{$capability}ListChanged"}) {
+                $subscription->context->notify($this->listChanged($capability, new NotificationMetaObject($subscription->context->id)));
+            }
+        }
     }
 
     private function post(Notification $notification): void
@@ -131,22 +195,33 @@ class MCPServer extends Entity implements Server
         app(Loop::class)->post(new OutboundMessage($this->session_id, $this->active_protocol_version, $notification));
     }
 
-    private function resourceUpdated(string $uri): Notification
+    /**
+     * @param NotificationMetaObject|null $meta On 2026-07-28, the subscription it goes out on.
+     */
+    private function resourceUpdated(string $uri, ?NotificationMetaObject $meta = null): Notification
     {
         $class = $this->schema('Messaging\\Resources\\ResourceUpdatedNotification');
+        $params = $this->schema('Messaging\\Params\\ResourceUpdatedNotificationParams');
 
-        return in_array($this->active_protocol_version, ['2024-11-05', '2025-03-26', '2025-06-18'], true)
-            ? new $class($uri)
-            : new $class(new ($this->schema('Messaging\\Params\\ResourceUpdatedNotificationParams'))($uri));
+        return match($this->active_protocol_version) {
+            '2024-11-05', '2025-03-26', '2025-06-18' => new $class($uri),
+            '2025-11-25' => new $class(new $params($uri)),
+            '2026-07-28' => new $class(new $params($uri, $meta)),
+        };
     }
 
-    private function listChanged(string $capability): Notification
+    /**
+     * @param NotificationMetaObject|null $meta On 2026-07-28, the subscription it goes out on.
+     */
+    private function listChanged(string $capability, ?NotificationMetaObject $meta = null): Notification
     {
-        return new ($this->schema(match($capability) {
+        $class = $this->schema(match($capability) {
             ListChanged::TOOLS => 'Messaging\\Tools\\ToolListChangedNotification',
             ListChanged::PROMPTS => 'Messaging\\Prompts\\PromptListChangedNotification',
             ListChanged::RESOURCES => 'Messaging\\Resources\\ResourceListChangedNotification',
-        }))();
+        });
+
+        return $this->active_protocol_version === '2026-07-28' ? new $class(new V20260728\Messaging\Params\NotificationParams($meta)) : new $class();
     }
 
     /**
@@ -187,7 +262,10 @@ class MCPServer extends Entity implements Server
         $request_id = $notification->toArray()['params']['requestId'] ?? null;
 
         // 2025-11-25 lets requestId be left out, for tasks, which tasks/cancel stops instead.
-        if(is_string($request_id) || is_int($request_id)) $this->cancel(new RequestId($request_id));
+        if(is_string($request_id) || is_int($request_id)) {
+            $this->cancel(new RequestId($request_id));
+            unset($this->subscriptions[json_encode($request_id)]);
+        }
     }
 
     public function receiveResponse(Result|MCPError $response): void

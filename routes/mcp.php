@@ -55,6 +55,7 @@ Route::group('tasks', function () {
     Route::procedure('result', TasksProcedure::class.'@result');
     Route::procedure('list', TasksProcedure::class.'@list');
     Route::procedure('cancel', TasksProcedure::class.'@cancel');
+    Route::procedure('update', TasksProcedure::class.'@update');
 });
 
 Route::group('sampling', function () {

@@ -169,7 +169,7 @@ class ResourcesProcedure extends Procedure
     /**
      * A resource's or template's annotations, title and icons, as the named arguments its definition takes in the
      * requested version: 2024-11-05 carries audience and priority itself, later versions an annotations object, then
-     * a title from 2025-06-18 and icons from 2025-11-25. 2026-07-28 definitions take none of them here.
+     * a title from 2025-06-18 and icons from 2025-11-25.
      *
      * @param class-string<Resource|ResourceTemplate> $class
      * @return array<string, mixed>
@@ -182,8 +182,7 @@ class ResourcesProcedure extends Procedure
             '2024-11-05' => ['audience' => $annotations?->audience, 'priority' => $annotations?->priority],
             '2025-03-26' => ['annotations' => $this->resourceAnnotations($annotations, $protocol_version)],
             '2025-06-18' => ['annotations' => $this->resourceAnnotations($annotations, $protocol_version), 'title' => $class::title()],
-            '2025-11-25' => ['annotations' => $this->resourceAnnotations($annotations, $protocol_version), 'icons' => $this->icons($class), 'title' => $class::title()],
-            '2026-07-28' => [],
+            '2025-11-25', '2026-07-28' => ['annotations' => $this->resourceAnnotations($annotations, $protocol_version), 'icons' => $this->icons($class), 'title' => $class::title()],
         };
 
         return array_filter($described, fn(mixed $value) => ! is_null($value));

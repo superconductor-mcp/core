@@ -177,3 +177,79 @@ it('keeps input_required to 2026-07-28: an earlier version gets an internal erro
 
     expect($reply['error']['code'])->toBe(-32603);
 });
+
+class ListeningServer extends ServerConfiguration
+{
+    protected array $supported_protocol_versions = ['2026-07-28'];
+    protected bool|array $tools = ['listChanged' => true];
+    protected bool|array $resources = ['subscribe' => true];
+
+    public function tools(mixed ...$params): array { return ['confirm']; }
+}
+
+function listening(): MCPServer
+{
+    return new MCPServer(new ListeningServer(new ServerCapabilitiesFactory()), '2026-07-28');
+}
+
+/** @return list<array> */
+function wireMail(ArrayObject $mail): array
+{
+    return array_map(fn(OutboundMessage $message) => $message->message()->toArray(), $mail->getArrayCopy());
+}
+
+it('acknowledges a subscription first, with the subset it will send, and keeps the request open.', function () {
+    $server = listening();
+    $reply = $server->receiveMessage(MessageDecoder::fromWire(json_encode(['jsonrpc' => '2.0', 'id' => 7, 'method' => 'subscriptions/listen', 'params' => [
+        'notifications' => ['toolsListChanged' => true, 'promptsListChanged' => true, 'resourceSubscriptions' => ['memo://a']],
+        '_meta' => ['io.modelcontextprotocol/protocolVersion' => '2026-07-28', 'io.modelcontextprotocol/clientCapabilities' => (object) []],
+    ]])));
+
+    expect($reply)->toBeNull()
+        ->and(wireMail($this->mail))->toBe([['jsonrpc' => '2.0', 'method' => 'notifications/subscriptions/acknowledged', 'params' => [
+            '_meta' => ['io.modelcontextprotocol/subscriptionId' => 7],
+            'notifications' => ['toolsListChanged' => true, 'resourceSubscriptions' => ['memo://a']],
+        ]]]);
+});
+
+it('sends a subscription only what it agreed to, each marked with its subscription id.', function () {
+    $server = listening();
+    $listen = fn(int $id, array $notifications) => $server->receiveMessage(MessageDecoder::fromWire(json_encode(['jsonrpc' => '2.0', 'id' => $id, 'method' => 'subscriptions/listen', 'params' => [
+        'notifications' => $notifications,
+        '_meta' => ['io.modelcontextprotocol/protocolVersion' => '2026-07-28', 'io.modelcontextprotocol/clientCapabilities' => (object) []],
+    ]])));
+
+    $listen(1, ['toolsListChanged' => true]);
+    $listen(2, ['resourceSubscriptions' => ['memo://a']]);
+    $this->mail->exchangeArray([]);
+
+    ConfirmTool::listChanged();
+    signal(new \Fabricate\Mechanism\Signals\ResourceUpdated('memo://a'));
+    signal(new \Fabricate\Mechanism\Signals\ResourceUpdated('memo://b'));
+
+    expect(array_map(fn(OutboundMessage $mail) => [$mail->related_request->id, $mail->message()->toArray()], $this->mail->getArrayCopy()))->toBe([
+        [1, ['jsonrpc' => '2.0', 'method' => 'notifications/tools/list_changed', 'params' => ['_meta' => ['io.modelcontextprotocol/subscriptionId' => 1]]]],
+        [2, ['jsonrpc' => '2.0', 'method' => 'notifications/resources/updated', 'params' => ['_meta' => ['io.modelcontextprotocol/subscriptionId' => 2], 'uri' => 'memo://a']]],
+    ]);
+});
+
+it('stops a subscription the client cancels, and cancels the ones still open when the server closes.', function () {
+    $server = listening();
+    foreach([1, 2] as $id) {
+        $server->receiveMessage(MessageDecoder::fromWire(json_encode(['jsonrpc' => '2.0', 'id' => $id, 'method' => 'subscriptions/listen', 'params' => [
+            'notifications' => ['toolsListChanged' => true],
+            '_meta' => ['io.modelcontextprotocol/protocolVersion' => '2026-07-28', 'io.modelcontextprotocol/clientCapabilities' => (object) []],
+        ]])));
+    }
+
+    $server->receiveMessage(MessageDecoder::fromWire('{"jsonrpc":"2.0","method":"notifications/cancelled","params":{"requestId":1,"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}'));
+    $this->mail->exchangeArray([]);
+
+    ConfirmTool::listChanged();
+    $server->close();
+
+    expect(array_map(fn(array $message) => [$message['method'], $message['params']['_meta']['io.modelcontextprotocol/subscriptionId']], wireMail($this->mail)))->toBe([
+        ['notifications/tools/list_changed', 2],
+        ['notifications/cancelled', 2],
+    ]);
+});

@@ -36,6 +36,14 @@ final class TaskStore
     }
 
     /**
+     * Drops a task, as if it had never been created.
+     */
+    public function forget(string $id): void
+    {
+        unset($this->tasks[$id]);
+    }
+
+    /**
      * @return list<TaskRecord>
      */
     public function all(): array

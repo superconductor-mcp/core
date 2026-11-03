@@ -152,7 +152,7 @@ class PromptsProcedure extends Procedure
             '2025-03-26' => new V20250326\Capabilities\Prompts\PromptDefinition($prompt::name(), $prompt::description(), $arguments),
             '2025-06-18' => new V20250618\Capabilities\Prompts\PromptDefinition($prompt::name(), $prompt::description(), $arguments, $prompt::title()),
             '2025-11-25' => new V20251125\Capabilities\Prompts\PromptDefinition($prompt::name(), $prompt::description(), $arguments, $this->icons($prompt), $prompt::title()),
-            '2026-07-28' => new V20260728\Capabilities\Prompts\PromptDefinition($prompt::name(), $prompt::description(), array_map(fn(array $a) => new V20260728\Capabilities\Prompts\PromptArgument($a['name'], null, $a['required']), $prompt::arguments())),
+            '2026-07-28' => new V20260728\Capabilities\Prompts\PromptDefinition($prompt::name(), $prompt::description(), $arguments, $this->icons($prompt), $prompt::title()),
         };
     }
 

@@ -82,7 +82,7 @@ class DayTemplate extends ResourceTemplate
 #[Icon('https://example.com/server.png', 'image/png')]
 class MetaServer extends ServerConfiguration
 {
-    protected array $supported_protocol_versions = ['2024-11-05', '2025-03-26', '2025-06-18', '2025-11-25'];
+    protected array $supported_protocol_versions = ['2024-11-05', '2025-03-26', '2025-06-18', '2025-11-25', '2026-07-28'];
     protected bool|array $tools = true;
     protected bool|array $prompts = true;
     protected bool|array $resources = true;
@@ -115,6 +115,8 @@ afterEach(fn() => ControlPanel::setInstance(null));
 
 function metaRpc(string $version, string $method, array $params = []): array
 {
+    if($version === '2026-07-28') $params['_meta'] = ['io.modelcontextprotocol/protocolVersion' => '2026-07-28', 'io.modelcontextprotocol/clientCapabilities' => (object) []];
+
     $reply = new MCPServer(new MetaServer(new ServerCapabilitiesFactory()), $version)
         ->receiveMessage(MessageDecoder::fromWire(json_encode(['jsonrpc' => '2.0', 'id' => 1, 'method' => $method] + ($params === [] ? [] : ['params' => $params]))));
 
@@ -202,4 +204,20 @@ it('registers only tools named by the MCP tool name rules.', function () {
 
     expect($tools->has('a.b-c_D9'))->toBeTrue()
         ->and(fn() => $tools->register(BadlyNamedTool::class))->toThrow(InvalidArgumentException::class);
+});
+
+
+it('defines tools, prompts, resources and templates with all their metadata on 2026-07-28.', function () {
+    $tool = metaRpc('2026-07-28', 'tools/list')['result']['tools'][0];
+    $prompt = metaRpc('2026-07-28', 'prompts/list')['result']['prompts'][0];
+    $resource = metaRpc('2026-07-28', 'resources/list')['result']['resources'][0];
+    $template = metaRpc('2026-07-28', 'resources/templates/list')['result']['resourceTemplates'][0];
+
+    expect($tool)->toMatchArray(['title' => 'Gauge', 'annotations' => ['title' => 'Gauge it', 'readOnlyHint' => true, 'openWorldHint' => false], 'icons' => [['src' => 'https://example.com/gauge.png', 'mimeType' => 'image/png', 'sizes' => ['48x48'], 'theme' => 'light']]])
+        ->and($tool['outputSchema'])->toEqual(['type' => 'object', 'properties' => ['subject' => ['type' => 'string'], 'reading' => ['type' => 'number']], 'required' => ['subject', 'reading']])
+        ->and($tool['inputSchema']['properties']['subject'])->toBe(['type' => 'string', 'title' => 'Subject', 'description' => 'What to measure.'])
+        ->and($prompt)->toMatchArray(['title' => 'Brief', 'icons' => [['src' => 'https://example.com/brief.svg', 'mimeType' => 'image/svg+xml', 'sizes' => ['any']]]])
+        ->and($prompt['arguments'][0])->toEqual(['name' => 'topic', 'title' => 'Topic', 'description' => 'What the brief is about.', 'required' => true])
+        ->and($resource)->toMatchArray(['title' => 'Report', 'size' => 2048, 'annotations' => ['audience' => ['user'], 'priority' => 0.5, 'lastModified' => '2026-11-02T00:00:00Z'], 'icons' => [['src' => 'https://example.com/report.png']]])
+        ->and($template)->toMatchArray(['title' => 'Day', 'annotations' => ['audience' => ['assistant'], 'priority' => 1]]);
 });

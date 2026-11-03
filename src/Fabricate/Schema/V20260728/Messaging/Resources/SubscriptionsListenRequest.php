@@ -2,6 +2,7 @@
 
 namespace Fabricate\Schema\V20260728\Messaging\Resources;
 
+use Fabricate\Schema\V20260728\Capabilities\Resources\SubscriptionFilter;
 use Fabricate\Contracts\Schema\Messaging\Resources\SubscriptionsListenRequest as SubscriptionsListenRequestContract;
 use Fabricate\Contracts\Schema\Messaging\ClientRequest;
 use Fabricate\Contracts\Schema\RequestId;
@@ -15,5 +16,10 @@ final readonly class SubscriptionsListenRequest extends JSONRPCRequest implement
         SubscriptionsListenRequestParams $params,
     ) {
         parent::__construct("2.0", $id, 'subscriptions/listen', $params);
+    }
+
+    public function notifications(): SubscriptionFilter
+    {
+        return $this->params->notifications;
     }
 }

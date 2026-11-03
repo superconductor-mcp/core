@@ -138,10 +138,11 @@ it('gates every request by version and receiving entity.', function (string $met
     ['subscriptions/listen', 'client', ['2026-07-28']],
     ['completion/complete', 'client', ['2024-11-05', '2025-03-26', '2025-06-18', '2025-11-25', '2026-07-28']],
     ['logging/setLevel', 'client', ['2024-11-05', '2025-03-26', '2025-06-18', '2025-11-25']],
-    ['tasks/get', 'both', ['2025-11-25']],
+    ['tasks/get', 'both', ['2025-11-25', '2026-07-28']],
     ['tasks/result', 'both', ['2025-11-25']],
     ['tasks/list', 'both', ['2025-11-25']],
-    ['tasks/cancel', 'both', ['2025-11-25']],
+    ['tasks/cancel', 'both', ['2025-11-25', '2026-07-28']],
+    ['tasks/update', 'both', ['2026-07-28']],
     ['sampling/createMessage', 'server', ['2024-11-05', '2025-03-26', '2025-06-18', '2025-11-25']],
     ['roots/list', 'server', ['2024-11-05', '2025-03-26', '2025-06-18', '2025-11-25']],
     ['elicitation/create', 'server', ['2025-06-18', '2025-11-25']],
@@ -320,7 +321,7 @@ it('uses one router through the facade.', function () {
 it('gives every procedure method the request, configuration and version, and the request context to those that ask.', function () {
     $routes = (fn() => $this->procedures)->call(app(ProcedureRouter::class));
 
-    expect($routes)->toHaveCount(21);
+    expect($routes)->toHaveCount(22);
 
     foreach($routes as $action)
     {

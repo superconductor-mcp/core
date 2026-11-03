@@ -15,6 +15,8 @@ use Fabricate\Contracts\Schema\Messaging\Tasks\GetTaskRequest;
 use Fabricate\Contracts\Schema\Messaging\Tasks\GetTaskResult;
 use Fabricate\Contracts\Schema\Messaging\Tasks\ListTasksRequest;
 use Fabricate\Contracts\Schema\Messaging\Tasks\ListTasksResult;
+use Fabricate\Contracts\Schema\Messaging\Tasks\UpdateTaskRequest;
+use Fabricate\Contracts\Schema\Messaging\EmptyResult;
 use Fabricate\Contracts\Schema\RPCErrorCode;
 use Fabricate\Contracts\Server\ServerConfiguration;
 use Fabricate\Core\Rpc\Procedures\Procedure;
@@ -23,20 +25,45 @@ use Fabricate\Mechanism\Paginator;
 use Fabricate\Mechanism\RequestContext;
 use Fabricate\Schema\V20251125\Messaging\MCPError as TaskError;
 use Fabricate\Schema\V20251125\Messaging\Tasks;
+use Fabricate\Schema\V20260728;
+use Fabricate\Schema\V20260728\Concerns\MCPErrorCode;
+use Fabricate\Server\ServerConfiguration as ServerConfigurationBase;
 use Fabricate\Server\Tasks\TaskRecord;
 use Fabricate\Server\Tasks\TaskStore;
 
 /**
- * The 2025-11-25 tasks a server ran for a session's requests. The store lives on the server configuration, so a
- * client receiving tasks has none to report.
+ * The tasks a server ran for its requests: 2025-11-25's tasks utility, and from 2026-07-28 the io.modelcontextprotocol/
+ * tasks extension, which polls with tasks/get, takes input through tasks/update, and has no tasks/list or tasks/result.
+ * The store lives on the server configuration, so a client receiving tasks has none to report.
  */
 #[CompatibleVersions('2025-11-25')]
 #[RequiresCapability('tasks')]
 class TasksProcedure extends Procedure
 {
-    public function get(GetTaskRequest $request, EntityConfiguration $entity_configuration, string $protocol_version): GetTaskResult
+    #[CompatibleVersions('2025-11-25', '2026-07-28')]
+    public function get(GetTaskRequest $request, EntityConfiguration $entity_configuration, string $protocol_version, ?RequestContext $context = null): GetTaskResult
     {
+        if($protocol_version === '2026-07-28') {
+            $this->extensionNegotiated($entity_configuration, $context);
+
+            return new V20260728\Messaging\Tasks\GetTaskResult($this->task($request->taskId(), $entity_configuration)->toDetailed(), $this->resultMeta($entity_configuration, $protocol_version));
+        }
+
         return new Tasks\GetTaskResult($this->task($request->taskId(), $entity_configuration)->toSchema());
+    }
+
+    /**
+     * Answers a task's outstanding inputRequests. Keys that aren't outstanding are ignored; once every outstanding one
+     * is answered the task resumes. Acknowledged with an empty result.
+     */
+    #[CompatibleVersions('2026-07-28')]
+    public function update(UpdateTaskRequest $request, EntityConfiguration $entity_configuration, string $protocol_version, ?RequestContext $context = null): EmptyResult
+    {
+        $this->extensionNegotiated($entity_configuration, $context);
+
+        $this->task($request->taskId(), $entity_configuration)->supply($request->inputResponses());
+
+        return new V20260728\Messaging\EmptyResult(_meta: $this->resultMeta($entity_configuration, $protocol_version));
     }
 
     /**
@@ -79,10 +106,20 @@ class TasksProcedure extends Procedure
     /**
      * Cancels a working task. Its work isn't interrupted, but what it produces afterwards is dropped.
      */
+    #[CompatibleVersions('2025-11-25', '2026-07-28')]
     #[RequiresCapability('tasks.cancel')]
-    public function cancel(CancelTaskRequest $request, EntityConfiguration $entity_configuration, string $protocol_version, ?RequestContext $context = null): CancelTaskResult
+    public function cancel(CancelTaskRequest $request, EntityConfiguration $entity_configuration, string $protocol_version, ?RequestContext $context = null): CancelTaskResult|EmptyResult
     {
-        $task = $this->task($request->taskId(), $entity_configuration);
+        $task = $protocol_version === '2026-07-28'
+            ? ($this->extensionNegotiated($entity_configuration, $context) ?? $this->task($request->taskId(), $entity_configuration))
+            : $this->task($request->taskId(), $entity_configuration);
+
+        // 2026-07-28 only asks for an acknowledgement; a task that already ended stays as it is.
+        if($protocol_version === '2026-07-28') {
+            $task->cancel();
+
+            return new V20260728\Messaging\EmptyResult(_meta: $this->resultMeta($entity_configuration, $protocol_version));
+        }
 
         if($task->terminal()) {
             throw new SuperconductorMCPException("Task [{$task->id}] is already {$task->status} and can't be cancelled.", RPCErrorCode::INVALID_PARAMS->value);
@@ -92,6 +129,23 @@ class TasksProcedure extends Procedure
         $context?->notify($task->statusNotification());
 
         return new Tasks\CancelTaskResult($task->toSchema());
+    }
+
+    /**
+     * The tasks extension is in play only if this server offers it and the request's client declared it; a client that
+     * didn't gets -32021 naming it, and a server that doesn't run tasks has no such method.
+     */
+    private function extensionNegotiated(EntityConfiguration $entity_configuration, ?RequestContext $context): null
+    {
+        if(! ($entity_configuration instanceof ServerConfigurationBase) || ! ($entity_configuration->tasksConfig()['requests']['tools']['call'] ?? false)) {
+            throw new SuperconductorMCPException('This server runs no tasks.', RPCErrorCode::METHOD_NOT_FOUND->value);
+        }
+
+        if(! isset($context?->client_capabilities['extensions'][ServerConfigurationBase::TASKS_EXTENSION])) {
+            throw new SuperconductorMCPException('Tasks need the '.ServerConfigurationBase::TASKS_EXTENSION.' extension.', MCPErrorCode::MISSING_REQUIRED_CLIENT_CAPABILITY->value, data: ['requiredCapabilities' => ['extensions' => [ServerConfigurationBase::TASKS_EXTENSION => (object) []]]]);
+        }
+
+        return null;
     }
 
     private function task(string $id, EntityConfiguration $entity_configuration): TaskRecord

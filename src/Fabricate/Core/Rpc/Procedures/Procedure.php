@@ -88,13 +88,13 @@ abstract class Procedure
 
     /**
      * What a 2026-07-28 result carries in _meta: the server's identity, which every modern result should name since no
-     * handshake did, when the configuration gives one. Null in the earlier versions.
+     * handshake did. Null in the earlier versions, and for a configuration that names no version.
      */
     protected function resultMeta(ServerConfiguration $entity_configuration, string $protocol_version): ?ResultMetaObject
     {
-        if($protocol_version !== '2026-07-28') return null;
+        if($protocol_version !== '2026-07-28' || ! $entity_configuration->identifiesItself()) return null;
 
-        return new ResultMetaObject($entity_configuration->identifiesItself() ? $entity_configuration->implementation($protocol_version) : null);
+        return new ResultMetaObject($entity_configuration->implementation($protocol_version));
     }
 
     /**

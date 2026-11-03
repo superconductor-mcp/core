@@ -130,6 +130,10 @@ final class V20260728Hydrator implements VersionHydrator
                 $params->optionalString('requestState'),
             )),
             'subscriptions/listen' => new Messaging\Resources\SubscriptionsListenRequest($id, new Params\SubscriptionsListenRequestParams($this->subscriptionFilter($params->child('notifications')), $meta)),
+            // The io.modelcontextprotocol/tasks extension.
+            'tasks/get' => new Messaging\Tasks\GetTaskRequest($id, new Params\TaskRequestParams($params->string('taskId'), $meta)),
+            'tasks/cancel' => new Messaging\Tasks\CancelTaskRequest($id, new Params\TaskRequestParams($params->string('taskId'), $meta)),
+            'tasks/update' => new Messaging\Tasks\UpdateTaskRequest($id, new Params\UpdateTaskRequestParams($params->string('taskId'), $this->inputResponses($params) ?? throw new HydrationException('params.inputResponses is required.'), $meta)),
             'completion/complete' => new Messaging\Autocomplete\CompleteRequest($id, new Params\CompleteRequestParams(
                 $this->reference($params->child('ref')),
                 $params->child('argument')->string('name'),
@@ -331,6 +335,7 @@ final class V20260728Hydrator implements VersionHydrator
             $filter->optionalBool('promptsListChanged'),
             $filter->optionalBool('resourcesListChanged'),
             $filter->optionalList('resourceSubscriptions'),
+            $filter->optionalList('taskIds'),
         );
     }
 
